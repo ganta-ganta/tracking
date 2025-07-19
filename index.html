@@ -822,7 +822,7 @@
 
         // Check initial auth state
         onAuthStateChanged(auth, (user) => {
-            if (user && user.email === 'Admin@gantasolutions.com') {
+            if (user && user.email === 'admin@gantasolutions.com') {
                 showPage('admin-dashboard');
                 initAdminDashboard();
             } else if (window.location.hash === '#admin') {
