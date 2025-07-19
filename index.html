@@ -766,304 +766,343 @@
 
     <!-- Firebase SDK (version 9 modular) -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { 
-            getFirestore, collection, doc, setDoc, getDoc, updateDoc, 
-            arrayUnion, query, where, orderBy, limit, getDocs, onSnapshot 
-        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        import { 
-            getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged 
-        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { 
+    getFirestore, collection, doc, setDoc, getDoc, updateDoc, 
+    arrayUnion, query, where, orderBy, limit, getDocs, onSnapshot 
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { 
+    getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-        // Your web app's Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyAIMQbZZjIb-Z_sNJ4_7XhNz0DtiNnSSfg",
-            authDomain: "shipment-bec8d.firebaseapp.com",
-            projectId: "shipment-bec8d",
-            storageBucket: "shipment-bec8d.appspot.com",
-            messagingSenderId: "83538524138",
-            appId: "1:83538524138:web:c06cf1b00915ea1f606493",
-            measurementId: "G-XHDE3ZMCEY"
-        };
+// Firebase configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyAIMQbZZjIb-Z_sNJ4_7XhNz0DtiNnSSfg",
+    authDomain: "shipment-bec8d.firebaseapp.com",
+    projectId: "shipment-bec8d",
+    storageBucket: "shipment-bec8d.appspot.com",
+    messagingSenderId: "83538524138",
+    appId: "1:83538524138:web:c06cf1b00915ea1f606493",
+    measurementId: "G-XHDE3ZMCEY"
+};
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-        // Status order for timeline
-        const statusOrder = [
-            "Shipment Created",
-            "Shipped from India",
-            "In Transit",
-            "Reached Destination Country",
-            "In Local Facility",
-            "Out for Delivery",
-            "Delivered"
-        ];
+// Status order for timeline
+const statusOrder = [
+    "Shipment Created",
+    "Shipped from India",
+    "In Transit",
+    "Reached Destination Country",
+    "In Local Facility",
+    "Out for Delivery",
+    "Delivered"
+];
 
-        // Page management
-        const pages = {
-            'tracking': document.getElementById('tracking-page'),
-            'admin-login': document.getElementById('admin-login-page'),
-            'admin-dashboard': document.getElementById('admin-dashboard-page')
-        };
+// Page management
+const pages = {
+    'tracking': document.getElementById('tracking-page'),
+    'admin-login': document.getElementById('admin-login-page'),
+    'admin-dashboard': document.getElementById('admin-dashboard-page')
+};
 
-        function showPage(pageId) {
-            Object.values(pages).forEach(page => page.classList.remove('active'));
-            pages[pageId].classList.add('active');
-        }
+function showPage(pageId) {
+    Object.values(pages).forEach(page => page.classList.remove('active'));
+    pages[pageId].classList.add('active');
+}
 
-        // Navigation
-        document.getElementById('admin-login-link').addEventListener('click', (e) => {
-            e.preventDefault();
-            showPage('admin-login');
-        });
+// Navigation
+document.getElementById('admin-login-link')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showPage('admin-login');
+});
 
-        // Check initial auth state
-        onAuthStateChanged(auth, (user) => {
-            if (user && user.email === 'admin@gantasolutions.com') {
-                showPage('admin-dashboard');
-                initAdminDashboard();
-            } else if (window.location.hash === '#admin') {
-                showPage('admin-login');
-            } else {
-                showPage('tracking');
-                initTrackingPage();
-            }
-        });
+// Check initial auth state
+onAuthStateChanged(auth, (user) => {
+    if (user && user.email.toLowerCase() === 'admin@gantasolutions.com') {
+        showPage('admin-dashboard');
+        initAdminDashboard();
+    } else if (window.location.hash === '#admin') {
+        showPage('admin-login');
+    } else {
+        showPage('tracking');
+        initTrackingPage();
+    }
+});
 
-        // Tracking Page Functionality
-        function initTrackingPage() {
-            const trackingForm = document.getElementById('trackingForm');
-            const trackingResult = document.getElementById('trackingResult');
-            const errorMessage = document.getElementById('errorMessage');
-            
-            trackingForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                
-                const trackingNumber = document.getElementById('trackingNumber').value.trim();
-                
-                if (!trackingNumber.startsWith('GS') || trackingNumber.length !== 10) {
-                    showError('Please enter a valid tracking number starting with GS followed by 8 digits.');
-                    return;
-                }
-                
-                try {
-                    // Check Firestore for this tracking number
-                    const docRef = doc(db, 'shipments', trackingNumber);
-                    const docSnap = await getDoc(docRef);
-                    
-                    if (docSnap.exists()) {
-                        displayShipmentDetails(docSnap.data());
-                    } else {
-                        showError('No shipment found with this tracking number. Please check and try again.');
-                    }
-                } catch (error) {
-                    console.error("Error getting shipment: ", error);
-                    showError('An error occurred while fetching shipment details. Please try again later.');
-                }
-            });
-            
-            function displayShipmentDetails(shipment) {
-                // Update the main info section
-                document.getElementById('resultTrackingNumber').textContent = shipment.trackingNumber;
-                document.getElementById('resultStatus').textContent = shipment.status;
-                document.getElementById('resultOrigin').textContent = shipment.origin;
-                document.getElementById('resultDestination').textContent = shipment.destination;
-                document.getElementById('resultWeight').textContent = shipment.weight ? `${shipment.weight} kg` : '-';
-                document.getElementById('resultUpdated').textContent = formatDate(shipment.updatedAt.toDate());
-                
-                // Update the timeline
-                const timelineSteps = document.getElementById('timelineSteps');
-                timelineSteps.innerHTML = '';
-                
-                let currentStatusIndex = statusOrder.indexOf(shipment.status);
-                
-                statusOrder.forEach((status, index) => {
-                    const step = document.createElement('div');
-                    step.className = 'timeline-step';
-                    
-                    if (index < currentStatusIndex) {
-                        step.classList.add('completed');
-                    } else if (index === currentStatusIndex) {
-                        step.classList.add('active');
-                    }
-                    
-                    const statusTitle = document.createElement('h4');
-                    statusTitle.textContent = status;
-                    
-                    const statusDesc = document.createElement('p');
-                    if (index < currentStatusIndex) {
-                        // For completed steps, show when it happened
-                        const historyItem = shipment.history.find(item => item.status === status);
-                        if (historyItem) {
-                            statusDesc.textContent = historyItem.notes || 'Status updated';
-                            const dateElement = document.createElement('span');
-                            dateElement.className = 'timeline-date';
-                            dateElement.textContent = formatDate(historyItem.timestamp.toDate());
-                            step.appendChild(dateElement);
-                        }
-                    } else if (index === currentStatusIndex) {
-                        // For current step, show latest notes
-                        statusDesc.textContent = shipment.notes || 'Current status';
-                    } else {
-                        // For future steps, just show the status name
-                        statusDesc.textContent = 'Pending';
-                    }
-                    
-                    step.appendChild(statusTitle);
-                    step.appendChild(statusDesc);
-                    timelineSteps.appendChild(step);
-                });
-                
-                // Hide error message if it was shown
-                errorMessage.style.display = 'none';
-                
-                // Show the tracking result
-                trackingResult.style.display = 'block';
-            }
-            
-            function showError(message) {
-                errorMessage.textContent = message;
-                errorMessage.style.display = 'block';
-                trackingResult.style.display = 'none';
-            }
-        }
-
-        // Admin Login Page Functionality
-        const loginForm = document.getElementById('loginForm');
-        const loginError = document.getElementById('loginError');
-
-        loginForm.addEventListener('submit', async (e) => {
+// Tracking Page Functionality
+function initTrackingPage() {
+    const trackingForm = document.getElementById('trackingForm');
+    const trackingResult = document.getElementById('trackingResult');
+    const errorMessage = document.getElementById('errorMessage');
+    
+    if (trackingForm) {
+        trackingForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+            const trackingNumber = document.getElementById('trackingNumber').value.trim();
             
-            // Only allow Admin@gantasolutions.com to login
-            if (email !== 'Admin@gantasolutions.com') {
-                loginError.textContent = 'Only admin can access this panel';
+            if (!trackingNumber.startsWith('GS') || trackingNumber.length !== 10) {
+                showError('Please enter a valid tracking number starting with GS followed by 8 digits.');
                 return;
             }
             
             try {
-                await signInWithEmailAndPassword(auth, email, password);
-                showPage('admin-dashboard');
-                initAdminDashboard();
+                // Check Firestore for this tracking number
+                const docRef = doc(db, 'shipments', trackingNumber);
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    displayShipmentDetails(docSnap.data());
+                } else {
+                    showError('No shipment found with this tracking number. Please check and try again.');
+                }
             } catch (error) {
-                console.error('Login error:', error);
-                loginError.textContent = 'Invalid email or password';
+                console.error("Error getting shipment: ", error);
+                showError('An error occurred while fetching shipment details. Please try again later.');
             }
         });
-
-        // Admin Dashboard Functionality
-        function initAdminDashboard() {
-            document.getElementById('adminEmail').textContent = auth.currentUser.email;
+    }
+    
+    function displayShipmentDetails(shipment) {
+        // Update the main info section
+        document.getElementById('resultTrackingNumber').textContent = shipment.trackingNumber;
+        document.getElementById('resultStatus').textContent = shipment.status;
+        document.getElementById('resultOrigin').textContent = shipment.origin;
+        document.getElementById('resultDestination').textContent = shipment.destination;
+        document.getElementById('resultWeight').textContent = shipment.weight ? `${shipment.weight} kg` : '-';
+        document.getElementById('resultUpdated').textContent = formatDate(shipment.updatedAt.toDate());
+        
+        // Update the timeline
+        const timelineSteps = document.getElementById('timelineSteps');
+        timelineSteps.innerHTML = '';
+        
+        let currentStatusIndex = statusOrder.indexOf(shipment.status);
+        
+        statusOrder.forEach((status, index) => {
+            const step = document.createElement('div');
+            step.className = 'timeline-step';
             
-            // Logout button
-            document.getElementById('logoutBtn').addEventListener('click', (e) => {
-                e.preventDefault();
-                signOut(auth).then(() => {
-                    showPage('tracking');
-                });
-            });
+            if (index < currentStatusIndex) {
+                step.classList.add('completed');
+            } else if (index === currentStatusIndex) {
+                step.classList.add('active');
+            }
             
-            // Navigation links
-            document.querySelectorAll('nav ul li a').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    // Remove active class from all links
-                    document.querySelectorAll('nav ul li').forEach(li => {
-                        li.classList.remove('active');
-                    });
-                    
-                    // Add active class to clicked link
-                    this.parentElement.classList.add('active');
-                    
-                    // Hide all sections
-                    document.querySelectorAll('.main-content > section').forEach(section => {
-                        section.style.display = 'none';
-                    });
-                    
-                    // Show the selected section
-                    const sectionId = this.getAttribute('href').substring(1);
-                    document.getElementById(sectionId).style.display = 'block';
-                });
-            });
+            const statusTitle = document.createElement('h4');
+            statusTitle.textContent = status;
             
-            // Modal close button
-            document.querySelector('.close-modal').addEventListener('click', () => {
-                document.getElementById('editShipmentModal').style.display = 'none';
-            });
-            
-            // Close modal when clicking outside
-            window.addEventListener('click', (e) => {
-                if (e.target === document.getElementById('editShipmentModal')) {
-                    document.getElementById('editShipmentModal').style.display = 'none';
+            const statusDesc = document.createElement('p');
+            if (index < currentStatusIndex) {
+                // For completed steps, show when it happened
+                const historyItem = shipment.history.find(item => item.status === status);
+                if (historyItem) {
+                    statusDesc.textContent = historyItem.notes || 'Status updated';
+                    const dateElement = document.createElement('span');
+                    dateElement.className = 'timeline-date';
+                    dateElement.textContent = formatDate(historyItem.timestamp.toDate());
+                    step.appendChild(dateElement);
                 }
-            });
+            } else if (index === currentStatusIndex) {
+                // For current step, show latest notes
+                statusDesc.textContent = shipment.notes || 'Current status';
+            } else {
+                // For future steps, just show the status name
+                statusDesc.textContent = 'Pending';
+            }
             
-            // Setup event listeners
-            setupEventListeners();
-            loadDashboard();
-        }
+            step.appendChild(statusTitle);
+            step.appendChild(statusDesc);
+            timelineSteps.appendChild(step);
+        });
+        
+        // Hide error message if it was shown
+        errorMessage.style.display = 'none';
+        
+        // Show the tracking result
+        trackingResult.style.display = 'block';
+    }
+    
+    function showError(message) {
+        errorMessage.textContent = message;
+        errorMessage.style.display = 'block';
+        trackingResult.style.display = 'none';
+    }
+}
 
-        function setupEventListeners() {
-            // Create shipment form
-            document.getElementById('createShipmentForm').addEventListener('submit', (e) => {
-                e.preventDefault();
-                createNewShipment();
-            });
-            
-            // Edit shipment form
-            document.getElementById('editShipmentForm').addEventListener('submit', (e) => {
-                e.preventDefault();
-                updateShipment();
-            });
-            
-            // Search and filter
-            document.getElementById('shipmentSearch').addEventListener('input', () => {
-                filterShipments();
-            });
-            
-            document.getElementById('statusFilter').addEventListener('change', () => {
-                filterShipments();
-            });
-        }
+// Admin Login Page Functionality
+const loginForm = document.getElementById('loginForm');
+const loginError = document.getElementById('loginError');
 
-        async function loadDashboard() {
-            // Load stats
-            const shipmentsQuery = query(collection(db, 'shipments'));
-            const shipmentsSnapshot = await getDocs(shipmentsQuery);
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        try {
+            // Show loading state
+            loginError.textContent = 'Logging in...';
+            loginError.style.color = 'blue';
+            loginError.style.display = 'block';
             
-            const totalShipments = shipmentsSnapshot.size;
-            let inTransit = 0;
-            let delivered = 0;
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
             
-            shipmentsSnapshot.forEach(doc => {
-                const data = doc.data();
-                if (data.status === 'Delivered') {
-                    delivered++;
-                } else {
-                    inTransit++;
-                }
+            // Check if the email is the admin email (case insensitive)
+            if (userCredential.user.email.toLowerCase() !== 'admin@gantasolutions.com') {
+                await signOut(auth);
+                loginError.textContent = 'Only admin can access this panel';
+                loginError.style.color = 'red';
+                return;
+            }
+            
+            showPage('admin-dashboard');
+            initAdminDashboard();
+        } catch (error) {
+            console.error('Login error:', error);
+            
+            // More specific error messages
+            if (error.code === 'auth/user-not-found') {
+                loginError.textContent = 'User not found. Please check your email.';
+            } else if (error.code === 'auth/wrong-password') {
+                loginError.textContent = 'Incorrect password. Please try again.';
+            } else if (error.code === 'auth/invalid-email') {
+                loginError.textContent = 'Invalid email format.';
+            } else {
+                loginError.textContent = 'Login failed: ' + error.message;
+            }
+            
+            loginError.style.color = 'red';
+        }
+    });
+}
+
+// Admin Dashboard Functionality
+function initAdminDashboard() {
+    document.getElementById('adminEmail').textContent = auth.currentUser.email;
+    
+    // Logout button
+    document.getElementById('logoutBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        signOut(auth).then(() => {
+            showPage('tracking');
+            window.location.hash = '';
+        });
+    });
+    
+    // Navigation links
+    document.querySelectorAll('nav ul li a').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Remove active class from all links
+            document.querySelectorAll('nav ul li').forEach(li => {
+                li.classList.remove('active');
             });
             
-            document.getElementById('totalShipments').textContent = totalShipments;
-            document.getElementById('inTransit').textContent = inTransit;
-            document.getElementById('delivered').textContent = delivered;
+            // Add active class to clicked link
+            this.parentElement.classList.add('active');
             
-            // Load recent shipments
-            const recentQuery = query(
-                collection(db, 'shipments'),
-                orderBy('createdAt', 'desc'),
-                limit(5)
-            );
-            const recentSnapshot = await getDocs(recentQuery);
+            // Hide all sections
+            document.querySelectorAll('.main-content > section').forEach(section => {
+                section.style.display = 'none';
+            });
             
-            const tableBody = document.querySelector('#recentShipmentsTable tbody');
+            // Show the selected section
+            const sectionId = this.getAttribute('href').substring(1);
+            document.getElementById(sectionId).style.display = 'block';
+        });
+    });
+    
+    // Modal close button
+    document.querySelector('.close-modal').addEventListener('click', () => {
+        document.getElementById('editShipmentModal').style.display = 'none';
+    });
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('editShipmentModal')) {
+            document.getElementById('editShipmentModal').style.display = 'none';
+        }
+    });
+    
+    // Setup event listeners
+    setupEventListeners();
+    loadDashboard();
+}
+
+function setupEventListeners() {
+    // Create shipment form
+    const createShipmentForm = document.getElementById('createShipmentForm');
+    if (createShipmentForm) {
+        createShipmentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await createNewShipment();
+        });
+    }
+    
+    // Edit shipment form
+    const editShipmentForm = document.getElementById('editShipmentForm');
+    if (editShipmentForm) {
+        editShipmentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await updateShipment();
+        });
+    }
+    
+    // Search and filter
+    const shipmentSearch = document.getElementById('shipmentSearch');
+    if (shipmentSearch) {
+        shipmentSearch.addEventListener('input', () => {
+            filterShipments();
+        });
+    }
+    
+    const statusFilter = document.getElementById('statusFilter');
+    if (statusFilter) {
+        statusFilter.addEventListener('change', () => {
+            filterShipments();
+        });
+    }
+}
+
+async function loadDashboard() {
+    try {
+        // Load stats
+        const shipmentsQuery = query(collection(db, 'shipments'));
+        const shipmentsSnapshot = await getDocs(shipmentsQuery);
+        
+        const totalShipments = shipmentsSnapshot.size;
+        let inTransit = 0;
+        let delivered = 0;
+        
+        shipmentsSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.status === 'Delivered') {
+                delivered++;
+            } else {
+                inTransit++;
+            }
+        });
+        
+        document.getElementById('totalShipments').textContent = totalShipments;
+        document.getElementById('inTransit').textContent = inTransit;
+        document.getElementById('delivered').textContent = delivered;
+        
+        // Load recent shipments
+        const recentQuery = query(
+            collection(db, 'shipments'),
+            orderBy('createdAt', 'desc'),
+            limit(5)
+        );
+        const recentSnapshot = await getDocs(recentQuery);
+        
+        const tableBody = document.querySelector('#recentShipmentsTable tbody');
+        if (tableBody) {
             tableBody.innerHTML = '';
             
             recentSnapshot.forEach(doc => {
@@ -1071,19 +1110,25 @@
                 const row = createShipmentTableRow(data);
                 tableBody.appendChild(row);
             });
-            
-            // Load all shipments for management
-            loadAllShipments();
         }
+        
+        // Load all shipments for management
+        await loadAllShipments();
+    } catch (error) {
+        console.error('Error loading dashboard:', error);
+    }
+}
 
-        async function loadAllShipments() {
-            const allQuery = query(
-                collection(db, 'shipments'),
-                orderBy('createdAt', 'desc')
-            );
-            const allSnapshot = await getDocs(allQuery);
-            
-            const tableBody = document.querySelector('#shipmentsTable tbody');
+async function loadAllShipments() {
+    try {
+        const allQuery = query(
+            collection(db, 'shipments'),
+            orderBy('createdAt', 'desc')
+        );
+        const allSnapshot = await getDocs(allQuery);
+        
+        const tableBody = document.querySelector('#shipmentsTable tbody');
+        if (tableBody) {
             tableBody.innerHTML = '';
             
             allSnapshot.forEach(doc => {
@@ -1092,174 +1137,180 @@
                 tableBody.appendChild(row);
             });
         }
+    } catch (error) {
+        console.error('Error loading shipments:', error);
+    }
+}
 
-        function createShipmentTableRow(data, withActions = false) {
-            const row = document.createElement('tr');
-            
-            // Tracking Number
-            const trackingCell = document.createElement('td');
-            trackingCell.textContent = data.trackingNumber;
-            row.appendChild(trackingCell);
-            
-            // Customer (or Status for recent shipments)
-            const customerCell = document.createElement('td');
-            if (withActions) {
-                customerCell.textContent = data.customerName || '-';
-            } else {
-                customerCell.textContent = data.status;
-            }
-            row.appendChild(customerCell);
-            
-            // Destination
-            const destinationCell = document.createElement('td');
-            destinationCell.textContent = data.destination;
-            row.appendChild(destinationCell);
-            
-            // Status (only for management table)
-            if (withActions) {
-                const statusCell = document.createElement('td');
-                statusCell.textContent = data.status;
-                row.appendChild(statusCell);
-            }
-            
-            // Last Updated
-            const updatedCell = document.createElement('td');
-            updatedCell.textContent = formatDate(data.updatedAt.toDate());
-            row.appendChild(updatedCell);
-            
-            // Actions (only for management table)
-            if (withActions) {
-                const actionsCell = document.createElement('td');
-                
-                const editBtn = document.createElement('button');
-                editBtn.className = 'btn btn-primary btn-sm';
-                editBtn.textContent = 'Edit';
-                editBtn.addEventListener('click', () => openEditModal(data));
-                actionsCell.appendChild(editBtn);
-                
-                row.appendChild(actionsCell);
-            }
-            
-            return row;
+function createShipmentTableRow(data, withActions = false) {
+    const row = document.createElement('tr');
+    
+    // Tracking Number
+    const trackingCell = document.createElement('td');
+    trackingCell.textContent = data.trackingNumber;
+    row.appendChild(trackingCell);
+    
+    // Customer (or Status for recent shipments)
+    const customerCell = document.createElement('td');
+    if (withActions) {
+        customerCell.textContent = data.customerName || '-';
+    } else {
+        customerCell.textContent = data.status;
+    }
+    row.appendChild(customerCell);
+    
+    // Destination
+    const destinationCell = document.createElement('td');
+    destinationCell.textContent = data.destination;
+    row.appendChild(destinationCell);
+    
+    // Status (only for management table)
+    if (withActions) {
+        const statusCell = document.createElement('td');
+        statusCell.textContent = data.status;
+        row.appendChild(statusCell);
+    }
+    
+    // Last Updated
+    const updatedCell = document.createElement('td');
+    updatedCell.textContent = formatDate(data.updatedAt.toDate());
+    row.appendChild(updatedCell);
+    
+    // Actions (only for management table)
+    if (withActions) {
+        const actionsCell = document.createElement('td');
+        
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-primary btn-sm';
+        editBtn.textContent = 'Edit';
+        editBtn.addEventListener('click', () => openEditModal(data));
+        actionsCell.appendChild(editBtn);
+        
+        row.appendChild(actionsCell);
+    }
+    
+    return row;
+}
+
+function openEditModal(shipment) {
+    const modal = document.getElementById('editShipmentModal');
+    const form = document.getElementById('editShipmentForm');
+    
+    document.getElementById('editTrackingNumber').value = shipment.trackingNumber;
+    document.getElementById('editStatus').value = shipment.status;
+    document.getElementById('editLocation').value = shipment.currentLocation || '';
+    document.getElementById('editNotes').value = shipment.notes || '';
+    
+    modal.style.display = 'flex';
+}
+
+async function createNewShipment() {
+    try {
+        // Get the current count
+        const counterRef = doc(db, 'counters', 'shipments');
+        const counterDoc = await getDoc(counterRef);
+        
+        let count = 1;
+        if (counterDoc.exists()) {
+            count = counterDoc.data().count + 1;
         }
-
-        function openEditModal(shipment) {
-            const modal = document.getElementById('editShipmentModal');
-            const form = document.getElementById('editShipmentForm');
-            
-            document.getElementById('editTrackingNumber').value = shipment.trackingNumber;
-            document.getElementById('editStatus').value = shipment.status;
-            document.getElementById('editLocation').value = shipment.currentLocation || '';
-            document.getElementById('editNotes').value = shipment.notes || '';
-            
-            modal.style.display = 'flex';
-        }
-
-        async function createNewShipment() {
-            // Get the current count
-            const counterRef = doc(db, 'counters', 'shipments');
-            const counterDoc = await getDoc(counterRef);
-            
-            let count = 1;
-            if (counterDoc.exists()) {
-                count = counterDoc.data().count + 1;
-            }
-            
-            const trackingNumber = 'GS' + count.toString().padStart(8, '0');
-            
-            // Create the shipment
-            const now = new Date();
-            const shipment = {
-                trackingNumber: trackingNumber,
-                customerName: document.getElementById('customerName').value,
-                customerEmail: document.getElementById('customerEmail').value,
-                origin: document.getElementById('origin').value,
-                destination: document.getElementById('destination').value,
-                weight: parseFloat(document.getElementById('weight').value),
-                dimensions: document.getElementById('dimensions').value,
-                contents: document.getElementById('contents').value,
+        
+        const trackingNumber = 'GS' + count.toString().padStart(8, '0');
+        
+        // Create the shipment
+        const now = new Date();
+        const shipment = {
+            trackingNumber: trackingNumber,
+            customerName: document.getElementById('customerName').value,
+            customerEmail: document.getElementById('customerEmail').value,
+            origin: document.getElementById('origin').value,
+            destination: document.getElementById('destination').value,
+            weight: parseFloat(document.getElementById('weight').value),
+            dimensions: document.getElementById('dimensions').value,
+            contents: document.getElementById('contents').value,
+            status: 'Shipment Created',
+            currentLocation: document.getElementById('origin').value,
+            notes: 'Shipment created and ready for processing',
+            createdAt: now,
+            updatedAt: now,
+            history: [{
                 status: 'Shipment Created',
-                currentLocation: document.getElementById('origin').value,
                 notes: 'Shipment created and ready for processing',
-                createdAt: now,
-                updatedAt: now,
-                history: [{
-                    status: 'Shipment Created',
-                    notes: 'Shipment created and ready for processing',
-                    location: document.getElementById('origin').value,
-                    timestamp: now
-                }]
-            };
-            
-            try {
-                // Add to Firestore
-                await setDoc(doc(db, 'shipments', trackingNumber), shipment);
-                
-                // Update counter
-                await setDoc(counterRef, { count: count });
-                
-                alert(`Shipment created successfully! Tracking Number: ${trackingNumber}`);
-                document.getElementById('createShipmentForm').reset();
-                loadDashboard();
-            } catch (error) {
-                console.error("Error creating shipment: ", error);
-                alert('Error creating shipment. Please try again.');
-            }
-        }
-
-        async function updateShipment() {
-            const trackingNumber = document.getElementById('editTrackingNumber').value;
-            const status = document.getElementById('editStatus').value;
-            const location = document.getElementById('editLocation').value;
-            const notes = document.getElementById('editNotes').value;
-            
-            const now = new Date();
-            const historyUpdate = {
-                status: status,
-                notes: notes,
-                location: location,
+                location: document.getElementById('origin').value,
                 timestamp: now
-            };
-            
-            try {
-                // Update the shipment
-                await updateDoc(doc(db, 'shipments', trackingNumber), {
-                    status: status,
-                    currentLocation: location,
-                    notes: notes,
-                    updatedAt: now,
-                    history: arrayUnion(historyUpdate)
-                });
-                
-                alert('Shipment updated successfully!');
-                document.getElementById('editShipmentModal').style.display = 'none';
-                loadDashboard();
-            } catch (error) {
-                console.error("Error updating shipment: ", error);
-                alert('Error updating shipment. Please try again.');
-            }
-        }
+            }]
+        };
+        
+        // Add to Firestore
+        await setDoc(doc(db, 'shipments', trackingNumber), shipment);
+        
+        // Update counter
+        await setDoc(counterRef, { count: count });
+        
+        alert(`Shipment created successfully! Tracking Number: ${trackingNumber}`);
+        document.getElementById('createShipmentForm').reset();
+        await loadDashboard();
+    } catch (error) {
+        console.error("Error creating shipment: ", error);
+        alert('Error creating shipment. Please try again.');
+    }
+}
 
-        async function filterShipments() {
-            const searchText = document.getElementById('shipmentSearch').value.toLowerCase();
-            const statusFilter = document.getElementById('statusFilter').value;
-            
-            let shipmentsQuery;
-            if (statusFilter) {
-                shipmentsQuery = query(
-                    collection(db, 'shipments'),
-                    where('status', '==', statusFilter),
-                    orderBy('createdAt', 'desc')
-                );
-            } else {
-                shipmentsQuery = query(
-                    collection(db, 'shipments'),
-                    orderBy('createdAt', 'desc')
-                );
-            }
-            
-            const shipmentsSnapshot = await getDocs(shipmentsQuery);
-            const tableBody = document.querySelector('#shipmentsTable tbody');
+async function updateShipment() {
+    try {
+        const trackingNumber = document.getElementById('editTrackingNumber').value;
+        const status = document.getElementById('editStatus').value;
+        const location = document.getElementById('editLocation').value;
+        const notes = document.getElementById('editNotes').value;
+        
+        const now = new Date();
+        const historyUpdate = {
+            status: status,
+            notes: notes,
+            location: location,
+            timestamp: now
+        };
+        
+        // Update the shipment
+        await updateDoc(doc(db, 'shipments', trackingNumber), {
+            status: status,
+            currentLocation: location,
+            notes: notes,
+            updatedAt: now,
+            history: arrayUnion(historyUpdate)
+        });
+        
+        alert('Shipment updated successfully!');
+        document.getElementById('editShipmentModal').style.display = 'none';
+        await loadDashboard();
+    } catch (error) {
+        console.error("Error updating shipment: ", error);
+        alert('Error updating shipment. Please try again.');
+    }
+}
+
+async function filterShipments() {
+    try {
+        const searchText = document.getElementById('shipmentSearch').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+        
+        let shipmentsQuery;
+        if (statusFilter) {
+            shipmentsQuery = query(
+                collection(db, 'shipments'),
+                where('status', '==', statusFilter),
+                orderBy('createdAt', 'desc')
+            );
+        } else {
+            shipmentsQuery = query(
+                collection(db, 'shipments'),
+                orderBy('createdAt', 'desc')
+            );
+        }
+        
+        const shipmentsSnapshot = await getDocs(shipmentsQuery);
+        const tableBody = document.querySelector('#shipmentsTable tbody');
+        if (tableBody) {
             tableBody.innerHTML = '';
             
             shipmentsSnapshot.forEach(doc => {
@@ -1274,17 +1325,29 @@
                 tableBody.appendChild(row);
             });
         }
+    } catch (error) {
+        console.error('Error filtering shipments:', error);
+    }
+}
 
-        function formatDate(date) {
-            const options = { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            };
-            return date.toLocaleDateString('en-US', options);
-        }
+function formatDate(date) {
+    const options = { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    };
+    return date.toLocaleDateString('en-US', options);
+}
+
+// Initialize the appropriate page based on current state
+if (window.location.hash === '#admin') {
+    showPage('admin-login');
+} else {
+    showPage('tracking');
+    initTrackingPage();
+}
     </script>
 </body>
 </html>
