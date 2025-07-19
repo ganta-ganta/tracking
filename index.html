@@ -772,7 +772,9 @@ import {
     arrayUnion, query, where, orderBy, limit, getDocs, onSnapshot 
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { 
-    getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged 
+    getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+    createUserWithEmailAndPassword, sendSignInLinkToEmail, isSignInWithEmailLink,
+    signInWithEmailLink
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 // Firebase configuration
@@ -806,12 +808,16 @@ const statusOrder = [
 const pages = {
     'tracking': document.getElementById('tracking-page'),
     'admin-login': document.getElementById('admin-login-page'),
-    'admin-dashboard': document.getElementById('admin-dashboard-page')
+    'admin-dashboard': document.getElementById('admin-dashboard-page'),
+    'customer-login': document.getElementById('customer-login-page'),
+    'customer-register': document.getElementById('customer-register-page')
 };
 
 function showPage(pageId) {
-    Object.values(pages).forEach(page => page.classList.remove('active'));
-    pages[pageId].classList.add('active');
+    Object.values(pages).forEach(page => {
+        if (page) page.classList.remove('active');
+    });
+    if (pages[pageId]) pages[pageId].classList.add('active');
 }
 
 // Navigation
@@ -820,17 +826,77 @@ document.getElementById('admin-login-link')?.addEventListener('click', (e) => {
     showPage('admin-login');
 });
 
+document.getElementById('customer-login-link')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showPage('customer-login');
+});
+
+document.getElementById('customer-register-link')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showPage('customer-register');
+});
+
 // Check initial auth state
 onAuthStateChanged(auth, (user) => {
-    if (user && user.email.toLowerCase() === 'admin@gantasolutions.com') {
-        showPage('admin-dashboard');
-        initAdminDashboard();
-    } else if (window.location.hash === '#admin') {
-        showPage('admin-login');
+    if (user) {
+        if (user.email.toLowerCase() === 'admin@gantasolutions.com') {
+            showPage('admin-dashboard');
+            initAdminDashboard();
+        } else {
+            showPage('tracking');
+            initTrackingPage();
+            document.getElementById('user-greeting').textContent = `Welcome, ${user.email}`;
+            document.getElementById('user-actions').style.display = 'block';
+            document.getElementById('login-prompt').style.display = 'none';
+        }
     } else {
-        showPage('tracking');
-        initTrackingPage();
+        if (window.location.hash === '#admin') {
+            showPage('admin-login');
+        } else {
+            showPage('tracking');
+            initTrackingPage();
+            document.getElementById('user-actions').style.display = 'none';
+            document.getElementById('login-prompt').style.display = 'block';
+        }
     }
+});
+
+// Customer Authentication
+if (document.getElementById('customerLoginForm')) {
+    document.getElementById('customerLoginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('customer-email').value;
+        const password = document.getElementById('customer-password').value;
+        
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+        } catch (error) {
+            document.getElementById('customer-login-error').textContent = error.message;
+        }
+    });
+}
+
+if (document.getElementById('customerRegisterForm')) {
+    document.getElementById('customerRegisterForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('register-email').value;
+        const password = document.getElementById('register-password').value;
+        const name = document.getElementById('register-name').value;
+        
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            // You could store additional user info in Firestore here
+            alert('Registration successful! You can now track your shipments.');
+            showPage('tracking');
+        } catch (error) {
+            document.getElementById('customer-register-error').textContent = error.message;
+        }
+    });
+}
+
+document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    signOut(auth);
 });
 
 // Tracking Page Functionality
@@ -846,17 +912,26 @@ function initTrackingPage() {
             const trackingNumber = document.getElementById('trackingNumber').value.trim();
             
             if (!trackingNumber.startsWith('GS') || trackingNumber.length !== 10) {
-                showError('Please enter a valid tracking number starting with GS followed by 8 digits.');
+                showError('Please enter a valid tracking number starting with GS followed by 8 characters.');
                 return;
             }
             
             try {
-                // Check Firestore for this tracking number
                 const docRef = doc(db, 'shipments', trackingNumber);
                 const docSnap = await getDoc(docRef);
                 
                 if (docSnap.exists()) {
-                    displayShipmentDetails(docSnap.data());
+                    const shipment = docSnap.data();
+                    const user = auth.currentUser;
+                    
+                    // Check if user is admin or the shipment belongs to them
+                    if (user && (user.email.toLowerCase() === 'admin@gantasolutions.com' || 
+                                 shipment.customerId === user.uid || 
+                                 shipment.customerEmail === user.email)) {
+                        displayShipmentDetails(shipment);
+                    } else {
+                        showError('You do not have permission to view this shipment.');
+                    }
                 } else {
                     showError('No shipment found with this tracking number. Please check and try again.');
                 }
@@ -868,7 +943,6 @@ function initTrackingPage() {
     }
     
     function displayShipmentDetails(shipment) {
-        // Update the main info section
         document.getElementById('resultTrackingNumber').textContent = shipment.trackingNumber;
         document.getElementById('resultStatus').textContent = shipment.status;
         document.getElementById('resultOrigin').textContent = shipment.origin;
@@ -876,7 +950,6 @@ function initTrackingPage() {
         document.getElementById('resultWeight').textContent = shipment.weight ? `${shipment.weight} kg` : '-';
         document.getElementById('resultUpdated').textContent = formatDate(shipment.updatedAt.toDate());
         
-        // Update the timeline
         const timelineSteps = document.getElementById('timelineSteps');
         timelineSteps.innerHTML = '';
         
@@ -897,7 +970,6 @@ function initTrackingPage() {
             
             const statusDesc = document.createElement('p');
             if (index < currentStatusIndex) {
-                // For completed steps, show when it happened
                 const historyItem = shipment.history.find(item => item.status === status);
                 if (historyItem) {
                     statusDesc.textContent = historyItem.notes || 'Status updated';
@@ -907,10 +979,8 @@ function initTrackingPage() {
                     step.appendChild(dateElement);
                 }
             } else if (index === currentStatusIndex) {
-                // For current step, show latest notes
                 statusDesc.textContent = shipment.notes || 'Current status';
             } else {
-                // For future steps, just show the status name
                 statusDesc.textContent = 'Pending';
             }
             
@@ -919,10 +989,7 @@ function initTrackingPage() {
             timelineSteps.appendChild(step);
         });
         
-        // Hide error message if it was shown
         errorMessage.style.display = 'none';
-        
-        // Show the tracking result
         trackingResult.style.display = 'block';
     }
     
@@ -945,14 +1012,12 @@ if (loginForm) {
         const password = document.getElementById('password').value;
         
         try {
-            // Show loading state
             loginError.textContent = 'Logging in...';
             loginError.style.color = 'blue';
             loginError.style.display = 'block';
             
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             
-            // Check if the email is the admin email (case insensitive)
             if (userCredential.user.email.toLowerCase() !== 'admin@gantasolutions.com') {
                 await signOut(auth);
                 loginError.textContent = 'Only admin can access this panel';
@@ -965,7 +1030,6 @@ if (loginForm) {
         } catch (error) {
             console.error('Login error:', error);
             
-            // More specific error messages
             if (error.code === 'auth/user-not-found') {
                 loginError.textContent = 'User not found. Please check your email.';
             } else if (error.code === 'auth/wrong-password') {
@@ -985,7 +1049,6 @@ if (loginForm) {
 function initAdminDashboard() {
     document.getElementById('adminEmail').textContent = auth.currentUser.email;
     
-    // Logout button
     document.getElementById('logoutBtn').addEventListener('click', (e) => {
         e.preventDefault();
         signOut(auth).then(() => {
@@ -994,49 +1057,40 @@ function initAdminDashboard() {
         });
     });
     
-    // Navigation links
     document.querySelectorAll('nav ul li a').forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
             
-            // Remove active class from all links
             document.querySelectorAll('nav ul li').forEach(li => {
                 li.classList.remove('active');
             });
             
-            // Add active class to clicked link
             this.parentElement.classList.add('active');
             
-            // Hide all sections
             document.querySelectorAll('.main-content > section').forEach(section => {
                 section.style.display = 'none';
             });
             
-            // Show the selected section
             const sectionId = this.getAttribute('href').substring(1);
             document.getElementById(sectionId).style.display = 'block';
         });
     });
     
-    // Modal close button
     document.querySelector('.close-modal').addEventListener('click', () => {
         document.getElementById('editShipmentModal').style.display = 'none';
     });
     
-    // Close modal when clicking outside
     window.addEventListener('click', (e) => {
         if (e.target === document.getElementById('editShipmentModal')) {
             document.getElementById('editShipmentModal').style.display = 'none';
         }
     });
     
-    // Setup event listeners
     setupEventListeners();
     loadDashboard();
 }
 
 function setupEventListeners() {
-    // Create shipment form
     const createShipmentForm = document.getElementById('createShipmentForm');
     if (createShipmentForm) {
         createShipmentForm.addEventListener('submit', async (e) => {
@@ -1045,7 +1099,6 @@ function setupEventListeners() {
         });
     }
     
-    // Edit shipment form
     const editShipmentForm = document.getElementById('editShipmentForm');
     if (editShipmentForm) {
         editShipmentForm.addEventListener('submit', async (e) => {
@@ -1054,7 +1107,6 @@ function setupEventListeners() {
         });
     }
     
-    // Search and filter
     const shipmentSearch = document.getElementById('shipmentSearch');
     if (shipmentSearch) {
         shipmentSearch.addEventListener('input', () => {
@@ -1072,7 +1124,6 @@ function setupEventListeners() {
 
 async function loadDashboard() {
     try {
-        // Load stats
         const shipmentsQuery = query(collection(db, 'shipments'));
         const shipmentsSnapshot = await getDocs(shipmentsQuery);
         
@@ -1093,7 +1144,6 @@ async function loadDashboard() {
         document.getElementById('inTransit').textContent = inTransit;
         document.getElementById('delivered').textContent = delivered;
         
-        // Load recent shipments
         const recentQuery = query(
             collection(db, 'shipments'),
             orderBy('createdAt', 'desc'),
@@ -1112,7 +1162,6 @@ async function loadDashboard() {
             });
         }
         
-        // Load all shipments for management
         await loadAllShipments();
     } catch (error) {
         console.error('Error loading dashboard:', error);
@@ -1145,12 +1194,10 @@ async function loadAllShipments() {
 function createShipmentTableRow(data, withActions = false) {
     const row = document.createElement('tr');
     
-    // Tracking Number
     const trackingCell = document.createElement('td');
     trackingCell.textContent = data.trackingNumber;
     row.appendChild(trackingCell);
     
-    // Customer (or Status for recent shipments)
     const customerCell = document.createElement('td');
     if (withActions) {
         customerCell.textContent = data.customerName || '-';
@@ -1159,24 +1206,20 @@ function createShipmentTableRow(data, withActions = false) {
     }
     row.appendChild(customerCell);
     
-    // Destination
     const destinationCell = document.createElement('td');
     destinationCell.textContent = data.destination;
     row.appendChild(destinationCell);
     
-    // Status (only for management table)
     if (withActions) {
         const statusCell = document.createElement('td');
         statusCell.textContent = data.status;
         row.appendChild(statusCell);
     }
     
-    // Last Updated
     const updatedCell = document.createElement('td');
     updatedCell.textContent = formatDate(data.updatedAt.toDate());
     row.appendChild(updatedCell);
     
-    // Actions (only for management table)
     if (withActions) {
         const actionsCell = document.createElement('td');
         
@@ -1206,21 +1249,19 @@ function openEditModal(shipment) {
 
 async function createNewShipment() {
     try {
-        // Get the current count
-        const counterRef = doc(db, 'counters', 'shipments');
-        const counterDoc = await getDoc(counterRef);
-        
-        let count = 1;
-        if (counterDoc.exists()) {
-            count = counterDoc.data().count + 1;
+        const user = auth.currentUser;
+        if (!user) {
+            alert('You must be logged in to create a shipment');
+            return;
         }
         
-        const trackingNumber = 'GS' + count.toString().padStart(8, '0');
-        
-        // Create the shipment
+        // Generate random tracking number
+        const trackingNumber = 'GS' + Math.random().toString(36).substr(2, 8).toUpperCase();
         const now = new Date();
+        
         const shipment = {
             trackingNumber: trackingNumber,
+            customerId: user.uid,
             customerName: document.getElementById('customerName').value,
             customerEmail: document.getElementById('customerEmail').value,
             origin: document.getElementById('origin').value,
@@ -1241,11 +1282,7 @@ async function createNewShipment() {
             }]
         };
         
-        // Add to Firestore
         await setDoc(doc(db, 'shipments', trackingNumber), shipment);
-        
-        // Update counter
-        await setDoc(counterRef, { count: count });
         
         alert(`Shipment created successfully! Tracking Number: ${trackingNumber}`);
         document.getElementById('createShipmentForm').reset();
@@ -1271,7 +1308,6 @@ async function updateShipment() {
             timestamp: now
         };
         
-        // Update the shipment
         await updateDoc(doc(db, 'shipments', trackingNumber), {
             status: status,
             currentLocation: location,
@@ -1316,7 +1352,6 @@ async function filterShipments() {
             shipmentsSnapshot.forEach(doc => {
                 const data = doc.data();
                 
-                // Apply search filter
                 if (searchText && !data.trackingNumber.toLowerCase().includes(searchText)) {
                     return;
                 }
@@ -1341,7 +1376,7 @@ function formatDate(date) {
     return date.toLocaleDateString('en-US', options);
 }
 
-// Initialize the appropriate page based on current state
+// Initialize the appropriate page
 if (window.location.hash === '#admin') {
     showPage('admin-login');
 } else {
