@@ -1943,14 +1943,19 @@ onAuthStateChanged(auth, (user) => {
             initTrackingPage();
         }
     }
-});
-        window.onload = function () {
-    const params = new URLSearchParams(window.location.search);
-    const ref = params.get("ref");
-    if (ref) {
-      document.getElementById("trackingInput").value = ref;
+});// Auto-fill tracking number from URL parameter
+window.onload = function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const trackingNumber = urlParams.get('ref');
+    
+    if (trackingNumber) {
+        document.getElementById('trackingNumber').value = trackingNumber;
+        
+        // Optional: Auto-submit the form if you want
+        // document.getElementById('trackingForm').submit();
     }
-  };
+};
+
     </script>
 </body>
 </html>
