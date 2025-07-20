@@ -1949,55 +1949,78 @@ function formatDate(date) {
     
     if (trackingRef) {
         const trackingInput = document.getElementById('trackingNumber');
-        if (trackingInput) {
-            // Set the tracking number in the input field
+        const trackingForm = document.getElementById('trackingForm');
+        
+        if (trackingInput && trackingForm) {
+            // Set the tracking number
             trackingInput.value = trackingRef.toUpperCase();
             
-            // Show loading spinner
-            const autoLoader = document.getElementById('auto-loading');
-            autoLoader.style.display = 'flex';
+            // Variables to track loading state
+            let isLoading = true;
+            let spinnerTimeout;
+            let requestTimeout;
             
-            // Set timeout in case the request takes too long
-            const loadingTimeout = setTimeout(() => {
-                autoLoader.style.display = 'none';
-                console.warn("Loading took too long");
-            }, 10000); // 10 second timeout
-            
-            // Auto-submit after short delay to ensure everything is loaded
-            setTimeout(() => {
-                try {
-                    // Create a proper submit event
-                    const submitEvent = new Event('submit', {
-                        bubbles: true,
-                        cancelable: true
-                    });
-                    
-                    // Find the form and dispatch the event
-                    const trackingForm = document.getElementById('trackingForm');
-                    if (trackingForm) {
-                        // Add callback to hide loader when done
-                        const originalHandler = trackingForm.onsubmit;
-                        trackingForm.onsubmit = function(e) {
-                            const result = originalHandler ? originalHandler.call(this, e) : true;
-                            if (result !== false) {
-                                clearTimeout(loadingTimeout);
-                                autoLoader.style.display = 'none';
-                            }
-                            return result;
-                        };
-                        
-                        trackingForm.dispatchEvent(submitEvent);
-                    } else {
-                        clearTimeout(loadingTimeout);
-                        autoLoader.style.display = 'none';
-                        console.error("Tracking form not found");
-                    }
-                } catch (e) {
-                    clearTimeout(loadingTimeout);
-                    autoLoader.style.display = 'none';
-                    console.error("Auto-submit failed:", e);
+            // Show spinner after 5 seconds if still loading
+            spinnerTimeout = setTimeout(() => {
+                if (isLoading) {
+                    document.getElementById('auto-loading').style.display = 'flex';
                 }
-            }, 1500); // 1.5 second delay before submitting
+            }, 5000); // Show spinner after 5 seconds
+            
+            // Timeout for the entire request (10 seconds max)
+            requestTimeout = setTimeout(() => {
+                if (isLoading) {
+                    isLoading = false;
+                    document.getElementById('auto-loading').style.display = 'none';
+                    showError('Tracking request timed out');
+                }
+            }, 10000);
+            
+            // Function to clean up timeouts
+            const cleanup = () => {
+                clearTimeout(spinnerTimeout);
+                clearTimeout(requestTimeout);
+                isLoading = false;
+            };
+            
+            // Handle the form submission
+            const handleSubmit = async (e) => {
+                if (e) e.preventDefault();
+                
+                try {
+                    const trackingNumber = trackingInput.value.trim().toUpperCase();
+                    
+                    if (!trackingNumber.startsWith('SIC') || trackingNumber.length !== 11) {
+                        showError('Invalid tracking number format');
+                        cleanup();
+                        return;
+                    }
+                    
+                    showLoading(); // Your existing loading function
+                    
+                    const docRef = doc(db, 'shipments', trackingNumber);
+                    const docSnap = await getDoc(docRef);
+                    
+                    cleanup(); // Clear timeouts
+                    document.getElementById('auto-loading').style.display = 'none';
+                    
+                    if (docSnap.exists()) {
+                        displayShipmentDetails(docSnap.data());
+                    } else {
+                        showError('No shipment found with this tracking number');
+                    }
+                } catch (error) {
+                    cleanup();
+                    document.getElementById('auto-loading').style.display = 'none';
+                    console.error("Tracking error:", error);
+                    showError('An error occurred while fetching shipment details');
+                } finally {
+                    hideLoading(); // Your existing function
+                }
+            };
+            
+            // Trigger the tracking immediately
+            handleSubmit();
         }
     }
 });
