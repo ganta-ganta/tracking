@@ -1944,6 +1944,13 @@ onAuthStateChanged(auth, (user) => {
         }
     }
 });
+        window.onload = function () {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref) {
+      document.getElementById("trackingInput").value = ref;
+    }
+  };
     </script>
 </body>
 </html>
