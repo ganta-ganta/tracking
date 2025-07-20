@@ -1943,7 +1943,7 @@ function formatDate(date) {
     };
     return date.toLocaleDateString('en-US', options);
 }
-        document.addEventListener('DOMContentLoaded', function() {
+       document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const trackingRef = urlParams.get('ref');
     
@@ -1951,17 +1951,23 @@ function formatDate(date) {
         const trackingInput = document.getElementById('trackingNumber');
         if (trackingInput) {
             trackingInput.value = trackingRef;
-            document.getElementById('autoLoading').style.display = 'flex';
+            document.getElementById('auto-loading').style.display = 'flex';
             
-            // Auto-submit after short delay
+            // Auto-submit after short delay to ensure everything is loaded
             setTimeout(function() {
-                try {
-                    document.getElementById('trackingForm').submit();
-                } catch (e) {
-                    document.getElementById('autoLoading').style.display = 'none';
-                    console.error("Auto-submit failed:", e);
+                const trackingForm = document.getElementById('trackingForm');
+                if (trackingForm) {
+                    // Create and dispatch a submit event
+                    const event = new Event('submit', {
+                        bubbles: true,
+                        cancelable: true
+                    });
+                    trackingForm.dispatchEvent(event);
+                } else {
+                    document.getElementById('auto-loading').style.display = 'none';
+                    console.error("Tracking form not found");
                 }
-            }, 1000);
+            }, 1500); // Increased delay to 1.5 seconds for better reliability
         }
     }
 });
