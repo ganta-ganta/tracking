@@ -1922,6 +1922,21 @@ function formatDate(date) {
     };
     return date.toLocaleDateString('en-US', options);
 }
+        // Handle ref parameter on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const trackingRef = urlParams.get('ref');
+    
+    if (trackingRef) {
+        const trackingInput = document.getElementById('trackingNumber');
+        if (trackingInput) {
+            trackingInput.value = trackingRef;
+            
+            // Optional: Auto-submit the form
+            // document.getElementById('trackingForm').submit();
+        }
+    }
+});
 
 // Authentication state handler
 onAuthStateChanged(auth, (user) => {
@@ -1943,18 +1958,7 @@ onAuthStateChanged(auth, (user) => {
             initTrackingPage();
         }
     }
-});// Auto-fill tracking number from URL parameter
-window.onload = function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const trackingNumber = urlParams.get('ref');
-    
-    if (trackingNumber) {
-        document.getElementById('trackingNumber').value = trackingNumber;
-        
-        // Optional: Auto-submit the form if you want
-        // document.getElementById('trackingForm').submit();
-    }
-};
+});
 
     </script>
 </body>
