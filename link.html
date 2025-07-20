@@ -144,7 +144,13 @@
             
             <div class="template">
                 <h4><i class="fas fa-comment-alt"></i> Message Template:</h4>
-                <p id="messageTemplate">Your package [TRACKING] is ready for tracking! Click here: [LINK] - SRESHTA Couriers</p>
+                <!--<p id="messageTemplate">Your package [TRACKING] is ready for tracking! Click here: [LINK] - SRESHTA Couriers</p>-->
+                <p id="messageTemplate" style="font-family: 'Poppins', sans-serif; line-height: 1.6; color: #333; background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #ff6600;">
+    <span style="color: #ff6600; margin-right: 8px;">📦</span> <strong>Your Package:</strong> [TRACKING]<br>
+    <span style="color: #25a1ff; margin-right: 8px;">🔍</span> <strong>Ready for Tracking!</strong><br>
+    <span style="color: #27ae60; margin-right: 8px;">👉</span> <a href="[LINK]" style="color: #0066cc; text-decoration: none;">Click here to track</a><br>
+    <span style="color: #2c3e50; margin-right: 8px;">🚚</span> <em style="color: #7f8c8d;">SRESHTA International Couriers</em>
+</p>
                 
                 <div class="action-buttons">
                     <button onclick="sendWhatsApp()" class="whatsapp-btn">
