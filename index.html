@@ -2036,14 +2036,16 @@ function formatDate(date) {
                 if (isLoading) {
                     document.getElementById('auto-loading').style.display = 'flex';
                 }
-            }, 5000); // Show spinner after 5 seconds
+            }, 5000);
             
             // Timeout for the entire request (10 seconds max)
             requestTimeout = setTimeout(() => {
                 if (isLoading) {
                     isLoading = false;
                     document.getElementById('auto-loading').style.display = 'none';
-                    showError('Tracking request timed out');
+                    if (window.showError) {
+                        window.showError('Tracking request timed out');
+                    }
                 }
             }, 10000);
             
@@ -2062,31 +2064,43 @@ function formatDate(date) {
                     const trackingNumber = trackingInput.value.trim().toUpperCase();
                     
                     if (!trackingNumber.startsWith('SIC') || trackingNumber.length !== 11) {
-                        showError('Invalid tracking number format');
+                        if (window.showError) {
+                            window.showError('Invalid tracking number format');
+                        }
                         cleanup();
                         return;
                     }
                     
-                    showLoading(); // Your existing loading function
+                    if (window.showLoading) {
+                        window.showLoading();
+                    }
                     
                     const docRef = doc(db, 'shipments', trackingNumber);
                     const docSnap = await getDoc(docRef);
                     
-                    cleanup(); // Clear timeouts
+                    cleanup();
                     document.getElementById('auto-loading').style.display = 'none';
                     
                     if (docSnap.exists()) {
-                        displayShipmentDetails(docSnap.data());
+                        if (window.displayShipmentDetails) {
+                            window.displayShipmentDetails(docSnap.data());
+                        }
                     } else {
-                        showError('No shipment found with this tracking number');
+                        if (window.showError) {
+                            window.showError('No shipment found with this tracking number');
+                        }
                     }
                 } catch (error) {
                     cleanup();
                     document.getElementById('auto-loading').style.display = 'none';
                     console.error("Tracking error:", error);
-                    showError('An error occurred while fetching shipment details');
+                    if (window.showError) {
+                        window.showError('An error occurred while fetching shipment details');
+                    }
                 } finally {
-                    hideLoading(); // Your existing function
+                    if (window.hideLoading) {
+                        window.hideLoading();
+                    }
                 }
             };
             
