@@ -1950,24 +1950,54 @@ function formatDate(date) {
     if (trackingRef) {
         const trackingInput = document.getElementById('trackingNumber');
         if (trackingInput) {
-            trackingInput.value = trackingRef;
-            document.getElementById('auto-loading').style.display = 'flex';
+            // Set the tracking number in the input field
+            trackingInput.value = trackingRef.toUpperCase();
+            
+            // Show loading spinner
+            const autoLoader = document.getElementById('auto-loading');
+            autoLoader.style.display = 'flex';
+            
+            // Set timeout in case the request takes too long
+            const loadingTimeout = setTimeout(() => {
+                autoLoader.style.display = 'none';
+                console.warn("Loading took too long");
+            }, 10000); // 10 second timeout
             
             // Auto-submit after short delay to ensure everything is loaded
-            setTimeout(function() {
-                const trackingForm = document.getElementById('trackingForm');
-                if (trackingForm) {
-                    // Create and dispatch a submit event
-                    const event = new Event('submit', {
+            setTimeout(() => {
+                try {
+                    // Create a proper submit event
+                    const submitEvent = new Event('submit', {
                         bubbles: true,
                         cancelable: true
                     });
-                    trackingForm.dispatchEvent(event);
-                } else {
-                    document.getElementById('auto-loading').style.display = 'none';
-                    console.error("Tracking form not found");
+                    
+                    // Find the form and dispatch the event
+                    const trackingForm = document.getElementById('trackingForm');
+                    if (trackingForm) {
+                        // Add callback to hide loader when done
+                        const originalHandler = trackingForm.onsubmit;
+                        trackingForm.onsubmit = function(e) {
+                            const result = originalHandler ? originalHandler.call(this, e) : true;
+                            if (result !== false) {
+                                clearTimeout(loadingTimeout);
+                                autoLoader.style.display = 'none';
+                            }
+                            return result;
+                        };
+                        
+                        trackingForm.dispatchEvent(submitEvent);
+                    } else {
+                        clearTimeout(loadingTimeout);
+                        autoLoader.style.display = 'none';
+                        console.error("Tracking form not found");
+                    }
+                } catch (e) {
+                    clearTimeout(loadingTimeout);
+                    autoLoader.style.display = 'none';
+                    console.error("Auto-submit failed:", e);
                 }
-            }, 1500); // Increased delay to 1.5 seconds for better reliability
+            }, 1500); // 1.5 second delay before submitting
         }
     }
 });
