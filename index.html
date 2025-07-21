@@ -1928,6 +1928,35 @@
             };
             return date.toLocaleDateString('en-US', options);
         }
+        // Add this to your JavaScript code (inside the initTrackingPage function)
+function initTrackingPage() {
+    // Check for referral code in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    
+    if (refCode) {
+        // Save the referral to your database
+        saveReferral(refCode);
+        
+        // Optional: Show a thank you message
+        console.log(`Thank you for using referral code: ${refCode}`);
+    }
+    
+    // Rest of your existing tracking page code...
+}
+
+async function saveReferral(refCode) {
+    try {
+        const docRef = doc(db, 'referrals', refCode);
+        await setDoc(docRef, {
+            code: refCode,
+            timestamp: new Date(),
+            count: increment(1) // Firebase increment function
+        }, { merge: true });
+    } catch (error) {
+        console.error("Error saving referral: ", error);
+    }
+}
 
         // Authentication state handler
         onAuthStateChanged(auth, (user) => {
@@ -1949,6 +1978,7 @@
                     initTrackingPage();
                 }
             }
+            
         });
     </script>
 </body>
