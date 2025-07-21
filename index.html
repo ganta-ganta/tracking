@@ -1960,22 +1960,7 @@
             };
             return date.toLocaleDateString('en-US', options);
         }
-        // Add this to your JavaScript code (inside the initTrackingPage function)
-function initTrackingPage() {
-    // Check for tracking number in URL parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    const trackingRef = urlParams.get('ref');
-    
-    if (trackingRef) {
-        // Auto-fill and submit the tracking form
-        document.getElementById('trackingNumber').value = trackingRef;
-        document.getElementById('trackingForm').dispatchEvent(new Event('submit'));
-    }
-    
-    // Rest of your existing tracking page code...
-    const trackingForm = document.getElementById('trackingForm');
-    // ... existing form submit handler ...
-}
+       
 
         // Authentication state handler
         onAuthStateChanged(auth, (user) => {
