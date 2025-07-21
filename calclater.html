@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shipping Weight Calculator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #1a252f;
+            --accent-color: #ff6600;
+            --success-color: #27ae60;        
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #2c3e50;
+            --text-color: #333;
+            --text-light: #7f8c8d;
+            --border-color: #ddd;
+            --sidebar-width: 250px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: var(--text-color);
+        }
+
+        .navbar {
+            background-color: var(--primary-color);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            color: white;
+        }
+
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        .btn-primary:hover {
+            background-color: #e65c00;
+            border-color: #e65c00;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.25rem rgba(255, 102, 0, 0.25);
+        }
+
+        .result-card {
+            background-color: var(--light-color);
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .prohibited-item {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .prohibited-item:hover {
+            background-color: rgba(231, 76, 60, 0.1);
+            transform: scale(1.02);
+        }
+
+        .icon-box {
+            width: 40px;
+            height: 40px;
+            background-color: rgba(255, 102, 0, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            color: var(--accent-color);
+        }
+
+        .tab-content {
+            padding: 20px 0;
+        }
+
+        .nav-pills .nav-link.active {
+            background-color: var(--accent-color);
+        }
+
+        .nav-pills .nav-link {
+            color: var(--primary-color);
+        }
+
+        .accordion-button:not(.collapsed) {
+            background-color: rgba(255, 102, 0, 0.1);
+            color: var(--accent-color);
+        }
+
+        .accordion-button:focus {
+            box-shadow: 0 0 0 0.25rem rgba(255, 102, 0, 0.25);
+            border-color: var(--accent-color);
+        }
+
+        .badge-danger {
+            background-color: var(--danger-color);
+        }
+
+        .floating-label {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .floating-label input {
+            height: 50px;
+            padding-top: 18px;
+        }
+
+        .floating-label label {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            padding: 18px 12px;
+            pointer-events: none;
+            border: 1px solid transparent;
+            transform-origin: 0 0;
+            transition: opacity .1s ease-in-out, transform .1s ease-in-out;
+            color: var(--text-light);
+        }
+
+        .floating-label input:focus ~ label,
+        .floating-label input:not(:placeholder-shown) ~ label {
+            transform: scale(.85) translateY(-.5rem) translateX(.15rem);
+            opacity: .65;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+
+        /* Mobile Navigation Styles */
+        .mobile-nav-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .mobile-nav-toggle:hover {
+            background: #e65c00;
+            transform: scale(1.1);
+        }
+
+        .mobile-nav {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 320px;
+            height: 100vh;
+            background: white;
+            z-index: 9998;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .mobile-nav.active {
+            right: 0;
+        }
+
+        .mobile-nav-header {
+            padding: 20px;
+            background: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .mobile-nav-logo {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+
+        .mobile-nav-title {
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+
+        .mobile-nav-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .mobile-nav-item {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .mobile-nav-link {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            color: var(--text-color);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-nav-link:hover {
+            background: rgba(255, 102, 0, 0.1);
+            color: var(--accent-color);
+        }
+
+        .mobile-nav-link i {
+            width: 24px;
+            margin-right: 15px;
+            text-align: center;
+        }
+
+        .mobile-nav-contact {
+            padding: 20px;
+            background: var(--light-color);
+        }
+
+        .mobile-contact-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .mobile-contact-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .mobile-contact-item i {
+            width: 24px;
+            margin-right: 15px;
+            color: var(--accent-color);
+        }
+
+        .mobile-contact-link {
+            color: var(--text-color);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .mobile-contact-link:hover {
+            color: var(--accent-color);
+        }
+
+        .mobile-nav-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9997;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-nav-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        @media (max-width: 992px) {
+            .mobile-nav-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Navigation Toggle -->
+    <button class="mobile-nav-toggle" id="mobileNavToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+    
+    <!-- Mobile Navigation Menu -->
+    <nav class="mobile-nav" id="mobileNav">
+        <div class="mobile-nav-header">
+            <img src="img/logo.png" alt="Logo" class="mobile-nav-logo">
+            <div class="mobile-nav-title">SRESHTA Couriers</div>
+        </div>
+        
+        <ul class="mobile-nav-menu">
+            <li class="mobile-nav-item">
+                <a href="home.html" class="mobile-nav-link">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+            </li>
+            <li class="mobile-nav-item">
+                <a href="about.html" class="mobile-nav-link">
+                    <i class="fas fa-info-circle"></i>
+                    <span>About Us</span>
+                </a>
+            </li>
+            <li class="mobile-nav-item">
+                <a href="our-services.html" class="mobile-nav-link">
+                    <i class="fas fa-shipping-fast"></i>
+                    <span>Our Services</span>
+                </a>
+            </li>
+            <li class="mobile-nav-item">
+                <a href="contact.html" class="mobile-nav-link">
+                    <i class="fas fa-envelope"></i>
+                    <span>Contact Us</span>
+                </a>
+            </li>
+        </ul>
+        
+        <div class="mobile-nav-contact">
+            <div class="mobile-contact-item">
+                <i class="fas fa-map-marker-alt"></i>
+                <a href="https://maps.google.com?q=7th Ln, Srinagar Colony, Guntur, Andhra Pradesh 522007" 
+                   target="_blank" 
+                   class="mobile-contact-link">
+                    7th Ln, Srinagar Colony, Guntur, Andhra Pradesh 522007
+                </a>
+            </div>
+            <div class="mobile-contact-item">
+                <i class="fas fa-phone-alt"></i>
+                <a href="tel:+919493924742" class="mobile-contact-link">+91 94939 24742</a>
+            </div>
+            <div class="mobile-contact-item">
+                <i class="fab fa-whatsapp"></i>
+                <a href="https://wa.me/919493924742" target="_blank" class="mobile-contact-link">WhatsApp</a>
+            </div>
+            <div class="mobile-contact-item">
+                <i class="fas fa-envelope"></i>
+                <a href="mailto:tsantoshkumarnaidu@gmail.com" class="mobile-contact-link">tsantoshkumarnaidu@gmail.com</a>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Mobile Navigation Overlay -->
+    <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-box-open me-2"></i>Shipping Calculator
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="home.html">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="about.html">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="our-services.html">Services</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="contact.html">Contact</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 fade-in">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-calculator me-2"></i>Dimensional Weight Calculator
+                    </div>
+                    <div class="card-body">
+                        <form id="weightCalculator">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="floating-label">
+                                        <input type="number" class="form-control" id="length" placeholder=" " required>
+                                        <label for="length">Length (cm)</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="floating-label">
+                                        <input type="number" class="form-control" id="width" placeholder=" " required>
+                                        <label for="width">Width (cm)</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="floating-label">
+                                        <input type="number" class="form-control" id="height" placeholder=" " required>
+                                        <label for="height">Height (cm)</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-grid mt-3">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-calculator me-2"></i>Calculate
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card result-card mb-4" id="resultCard" style="display: none;">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-weight me-2"></i>Dimensional Weight Result</h5>
+                        <div class="d-flex align-items-center mt-3">
+                            <div class="icon-box">
+                                <i class="fas fa-box"></i>
+                            </div>
+                            <div>
+                                <h3 class="mb-0" id="resultValue">0 kg</h3>
+                                <p class="text-muted mb-0">Formula: (Length × Width × Height) / 5000</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 fade-in delay-1">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Quick Info
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-info-circle me-2"></i>Always measure the outer dimensions of your package.
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="fas fa-ruler-combined me-2"></i>Dimensional weight reflects package density.
+                        </div>
+                        <div class="alert alert-danger">
+                            <i class="fas fa-ban me-2"></i>Check prohibited items before shipping.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row fade-in delay-2">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-ban me-2"></i>Prohibited Items
+                    </div>
+                    <div class="card-body">
+                        <ul class="nav nav-pills mb-4" id="prohibitedTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="items-tab" data-bs-toggle="pill" data-bs-target="#items" type="button">
+                                    <i class="fas fa-boxes me-2"></i>Items Overview
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="freight-tab" data-bs-toggle="pill" data-bs-target="#freight" type="button">
+                                    <i class="fas fa-shipping-fast me-2"></i>Freight Overview
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="dangerous-tab" data-bs-toggle="pill" data-bs-target="#dangerous" type="button">
+                                    <i class="fas fa-radiation me-2"></i>Dangerous Goods
+                                </button>
+                            </li>
+                        </ul>
+                        
+                        <div class="tab-content" id="prohibitedTabsContent">
+                            <div class="tab-pane fade show active" id="items" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="prohibited-item p-3 mb-3 border rounded">
+                                            <div class="d-flex align-items-center">
+                                                <div class="icon-box">
+                                                    <i class="fas fa-money-bill-wave"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">Currency</h6>
+                                                    <small class="text-muted">Coins, cash, negotiable instruments</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="prohibited-item p-3 mb-3 border rounded">
+                                            <div class="d-flex align-items-center">
+                                                <div class="icon-box">
+                                                    <i class="fas fa-flask"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">Liquids & Semi-liquids</h6>
+                                                    <small class="text-muted">Restricted by quantity</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="prohibited-item p-3 mb-3 border rounded">
+                                            <div class="d-flex align-items-center">
+                                                <div class="icon-box">
+                                                    <i class="fas fa-fire"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">Flammable Items</h6>
+                                                    <small class="text-muted">Aerosols, lighters, etc.</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="prohibited-item p-3 mb-3 border rounded">
+                                            <div class="d-flex align-items-center">
+                                                <div class="icon-box">
+                                                    <i class="fas fa-pills"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">Drugs & Narcotics</h6>
+                                                    <small class="text-muted">Without proper authorization</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="prohibited-item p-3 mb-3 border rounded">
+                                            <div class="d-flex align-items-center">
+                                                <div class="icon-box">
+                                                    <i class="fas fa-gem"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">Precious Items</h6>
+                                                    <small class="text-muted">Gold, diamonds, etc.</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="prohibited-item p-3 mb-3 border rounded">
+                                            <div class="d-flex align-items-center">
+                                                <div class="icon-box">
+                                                    <i class="fas fa-bolt"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">Battery Products</h6>
+                                                    <small class="text-muted">Certain electronic devices</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="accordion mt-4" id="moreItemsAccordion">
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#moreItems">
+                                                <i class="fas fa-ellipsis-h me-2"></i>View More Prohibited Items
+                                            </button>
+                                        </h2>
+                                        <div id="moreItems" class="accordion-collapse collapse">
+                                            <div class="accordion-body">
+                                                <ul class="list-group list-group-flush">
+                                                    <li class="list-group-item d-flex align-items-center">
+                                                        <i class="fas fa-skull me-3 text-danger"></i>
+                                                        Corpses, cremated or disinterred remains
+                                                    </li>
+                                                    <li class="list-group-item d-flex align-items-center">
+                                                        <i class="fas fa-snowflake me-3 text-danger"></i>
+                                                        Dry Ice (including that used for packaging)
+                                                    </li>
+                                                    <li class="list-group-item d-flex align-items-center">
+                                                        <i class="fas fa-dice me-3 text-danger"></i>
+                                                        Gambling Devices
+                                                    </li>
+                                                    <li class="list-group-item d-flex align-items-center">
+                                                        <i class="fas fa-leaf me-3 text-danger"></i>
+                                                        Live animals and plants
+                                                    </li>
+                                                    <li class="list-group-item d-flex align-items-center">
+                                                        <i class="fas fa-utensils me-3 text-danger"></i>
+                                                        Foodstuffs/Perishable items
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="tab-pane fade" id="freight" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="prohibited-item p-3 mb-3 border rounded">
+                                            <div class="d-flex align-items-center">
+                                                <div class="icon-box" style="background-color: rgba(231, 76, 60, 0.1); color: var(--danger-color);">
+                                                    <i class="fas fa-bomb"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">Explosives</h6>
+                                                    <small class="text-muted">All types of explosives</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="prohibited-item p-3 mb-3 border rounded">
+                                            <div class="d-flex align-items-center">
+                                                <div class="icon-box" style="background-color: rgba(231, 76, 60, 0.1); color: var(--danger-color);">
+                                                    <i class="fas fa-wind"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">Gases</h6>
+                                                    <small class="text-muted">Flammable, non-flammable, toxic</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="prohibited-item p-3 mb-3 border rounded">
+                                            <div class="d-flex align-items-center">
+                                                <div class="icon-box" style="background-color: rgba(231, 76, 60, 0.1); color: var(--danger-color);">
+                                                    <i class="fas fa-fire-extinguisher"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">Flammable Liquids</h6>
+                                                    <small class="text-muted">Gasoline, alcohol, etc.</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="prohibited-item p-3 mb-3 border rounded">
+                                            <div class="d-flex align-items-center">
+                                                <div class="icon-box" style="background-color: rgba(231, 76, 60, 0.1); color: var(--danger-color);">
+                                                    <i class="fas fa-fire-alt"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">Flammable Solids</h6>
+                                                    <small class="text-muted">Matches, phosphorus, etc.</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="tab-pane fade" id="dangerous" role="tabpanel">
+                                <div class="alert alert-danger">
+                                    <i class="fas fa-radiation-alt me-2"></i>
+                                    <strong>Dangerous Goods</strong> are materials or items with hazardous properties which, if not properly controlled, present a potential hazard to human health and safety, infrastructure, and/or their means of transport.
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card border-danger mb-3">
+                                            <div class="card-header bg-danger text-white">
+                                                <i class="fas fa-biohazard me-2"></i>Toxic & Infectious
+                                            </div>
+                                            <div class="card-body">
+                                                <p>Substances liable either to cause death or serious injury or to harm human health if swallowed, inhaled, or by skin contact.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card border-warning mb-3">
+                                            <div class="card-header bg-warning text-white">
+                                                <i class="fas fa-atom me-2"></i>Radioactive
+                                            </div>
+                                            <div class="card-body">
+                                                <p>Any material containing radionuclides where both the activity concentration and the total activity exceed certain values.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card border-dark mb-3">
+                                            <div class="card-header bg-dark text-white">
+                                                <i class="fas fa-tint me-2"></i>Corrosives
+                                            </div>
+                                            <div class="card-body">
+                                                <p>Substances which, by chemical action, will cause severe damage when in contact with living tissue or other materials.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card border-primary mb-3">
+                                            <div class="card-header bg-primary text-white">
+                                                <i class="fas fa-boxes me-2"></i>Miscellaneous
+                                            </div>
+                                            <div class="card-body">
+                                                <p>Other hazardous materials including environmentally hazardous substances, lithium batteries, etc.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5><i class="fas fa-box-open me-2"></i>Shipping Calculator</h5>
+                    <p class="text-muted">Calculate dimensional weight and check prohibited items for shipping.</p>
+                </div>
+                <div class="col-md-3">
+                    <h5>Links</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="home.html" class="text-decoration-none text-muted">Home</a></li>
+                        <li><a href="about.html" class="text-decoration-none text-muted">About</a></li>
+                        <li><a href="our-services.html" class="text-decoration-none text-muted">Services</a></li>
+                        <li><a href="contact.html" class="text-decoration-none text-muted">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h5>Contact</h5>
+                    <ul class="list-unstyled text-muted">
+                        <li><i class="fas fa-map-marker-alt me-2"></i>7th Ln, Srinagar Colony, Guntur</li>
+                        <li><i class="fas fa-phone me-2"></i>+91 94939 24742</li>
+                        <li><i class="fas fa-envelope me-2"></i>tsantoshkumarnaidu@gmail.com</li>
+                    </ul>
+                </div>
+            </div>
+            <hr class="my-4 bg-secondary">
+            <div class="text-center text-muted">
+                <small>&copy; 2023 SRESHTA Couriers. All rights reserved.</small>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mobile navigation toggle
+            const mobileNavToggle = document.getElementById('mobileNavToggle');
+            const mobileNav = document.getElementById('mobileNav');
+            const mobileNavOverlay = document.getElementById('mobileNavOverlay');
+            
+            mobileNavToggle.addEventListener('click', function() {
+                mobileNav.classList.toggle('active');
+                mobileNavOverlay.classList.toggle('active');
+                document.body.style.overflow = mobileNav.classList.contains('active') ? 'hidden' : '';
+            });
+            
+            mobileNavOverlay.addEventListener('click', function() {
+                mobileNav.classList.remove('active');
+                mobileNavOverlay.classList.remove('active');
+                document.body.style.overflow = '';
+            });
+            
+            // Close mobile nav when clicking on a link
+            const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
+            mobileNavLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    mobileNav.classList.remove('active');
+                    mobileNavOverlay.classList.remove('active');
+                    document.body.style.overflow = '';
+                });
+            });
+
+            // Weight calculation form
+            const weightForm = document.getElementById('weightCalculator');
+            const resultCard = document.getElementById('resultCard');
+            const resultValue = document.getElementById('resultValue');
+            
+            weightForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const length = parseFloat(document.getElementById('length').value);
+                const width = parseFloat(document.getElementById('width').value);
+                const height = parseFloat(document.getElementById('height').value);
+                
+                if (isNaN(length) || isNaN(width) || isNaN(height)) {
+                    alert('Please enter valid dimensions');
+                    return;
+                }
+                
+                const dimensionalWeight = (length * width * height) / 5000;
+                
+                resultValue.textContent = dimensionalWeight.toFixed(2) + ' kg';
+                resultCard.style.display = 'block';
+                
+                // Scroll to result
+                resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                
+                // Add animation
+                resultCard.style.animation = 'none';
+                void resultCard.offsetWidth; // Trigger reflow
+                resultCard.style.animation = 'fadeIn 0.5s ease forwards';
+            });
+            
+            // Add hover effects to prohibited items
+            const prohibitedItems = document.querySelectorAll('.prohibited-item');
+            prohibitedItems.forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    this.style.boxShadow = '0 5px 15px rgba(0, 0, 0, 0.1)';
+                });
+                item.addEventListener('mouseleave', function() {
+                    this.style.boxShadow = 'none';
+                });
+            });
+            
+            // Animate elements on scroll
+            const animateOnScroll = function() {
+                const elements = document.querySelectorAll('.fade-in');
+                
+                elements.forEach(element => {
+                    const elementPosition = element.getBoundingClientRect().top;
+                    const windowHeight = window.innerHeight;
+                    
+                    if (elementPosition < windowHeight - 100) {
+                        element.style.opacity = '1';
+                        element.style.transform = 'translateY(0)';
+                    }
+                });
+            };
+            
+            window.addEventListener('scroll', animateOnScroll);
+            animateOnScroll(); // Run once on page load
+        });
+    </script>
+</body>
+</html>
