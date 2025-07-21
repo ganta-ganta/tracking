@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sreshta Couriers - Shipping Document Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #0066cc;
+            --secondary-color: #e9f4ff;
+            --border-color: #d1e3f8;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.3;
+            margin: 5px;
+            padding: 5px;
+            background-color: #f5f9ff;
+            color: #333;
+            font-size: 13px;
+            border: 1px solid var(--primary-color);
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border: 1px solid var(--border-color);
+        }
+        
+        .header {
+            text-align: center;
+            padding: 8px;
+            background-color: var(--secondary-color);
+            border-bottom: 1px solid var(--primary-color);
+        }
+        
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 3px;
+        }
+        
+        .company-logo {
+            height: 45px;
+            margin-right: 5px;
+        }
+        
+        .header h1 {
+            color: var(--primary-color);
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            margin: 1px 0 0;
+            color: #666;
+            font-size: 11px;
+        }
+        
+        .form-section {
+            padding: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .form-section h2 {
+            margin: 0 0 5px 0;
+            color: var(--primary-color);
+            font-size: 13px;
+        }
+        
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 3px;
+            gap: 3px;
+        }
+        
+        .form-group {
+            flex: 1;
+            min-width: 140px;
+            margin-bottom: 2px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 1px;
+            font-weight: 600;
+            color: #555;
+            font-size: 11px;
+        }
+        
+        .form-group input, 
+        .form-group textarea, 
+        .form-group select {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ddd;
+            font-size: 11px;
+            background-color: #f9f9f9;
+        }
+        
+        .form-group textarea {
+            height: 55px;
+            resize: vertical;
+        }
+        
+        .btn-container {
+            text-align: center;
+            padding: 8px;
+            background-color: #f5f9ff;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            font-size: 11px;
+            cursor: pointer;
+            margin: 0 2px;
+            font-weight: 600;
+        }
+        
+        .btn-secondary {
+            background-color: #666;
+        }
+        
+        .document-output {
+            margin-top: 5px;
+            border: 1px solid var(--border-color);
+            background-color: white;
+            display: none;
+        }
+        
+        .output-header {
+            padding: 8px;
+            background-color: var(--secondary-color);
+            border-bottom: 1px solid var(--primary-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .output-content {
+            padding: 8px;
+        }
+        
+        .document-section {
+            border: 1px solid #ddd;
+            padding: 6px;
+            margin-bottom: 5px;
+            background-color: #f9f9f9;
+        }
+        
+        .document-section h3 {
+            margin: 0 0 3px 0;
+            color: var(--primary-color);
+            font-size: 12px;
+        }
+        
+        .document-section p {
+            margin: 2px 0;
+            font-size: 11px;
+        }
+        
+        .signature-line {
+            border-top: 1px solid #000;
+            margin-top: 25px;
+            padding-top: 2px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 8px;
+            padding-top: 5px;
+            border-top: 1px solid #ddd;
+            font-size: 10px;
+            color: #666;
+        }
+        
+        .barcode-container, .qr-code-container {
+            margin: 2px 0;
+            text-align: center;
+        }
+        
+        .barcode-label, .qr-code-label {
+            font-size: 9px;
+            margin-top: 1px;
+            color: #555;
+        }
+        
+        @page {
+            size: A4 landscape;
+            margin: 2mm;
+        }
+        
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .document-output, .document-output * {
+                visibility: visible;
+            }
+            .document-output {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 8px;
+            right: 8px;
+            padding: 6px 10px;
+            background-color: #4CAF50;
+            color: white;
+            z-index: 1000;
+            display: none;
+            font-size: 11px;
+        }
+        
+        .document-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            margin-bottom: 3px;
+        }
+        
+        .document-col {
+            flex: 1;
+            min-width: 240px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo-container">
+                <img src="https://via.placeholder.com/45x45?text=SRESHTA" alt="Sreshta Couriers Logo" class="company-logo">
+                <div>
+                    <h1>Sreshta Couriers</h1>
+                    <p>Shipping Document Generator</p>
+                </div>
+            </div>
+        </div>
+
+        <form id="shippingForm">
+            <div class="form-section">
+                <h2>1. Sender Information</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="senderAccount">Account No.</label>
+                        <input type="text" id="senderAccount" name="senderAccount">
+                    </div>
+                    <div class="form-group">
+                        <label for="senderName">Name*</label>
+                        <input type="text" id="senderName" name="senderName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="senderPhone">Phone*</label>
+                        <input type="tel" id="senderPhone" name="senderPhone" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 2;">
+                        <label for="senderAddress">Address*</label>
+                        <input type="text" id="senderAddress" name="senderAddress" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="senderCity">City*</label>
+                        <input type="text" id="senderCity" name="senderCity" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="senderPostalCode">Postal Code*</label>
+                        <input type="text" id="senderPostalCode" name="senderPostalCode" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2>2. Receiver Information</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="receiverAccount">Account No.</label>
+                        <input type="text" id="receiverAccount" name="receiverAccount">
+                    </div>
+                    <div class="form-group">
+                        <label for="receiverName">Name*</label>
+                        <input type="text" id="receiverName" name="receiverName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="receiverPhone">Phone*</label>
+                        <input type="tel" id="receiverPhone" name="receiverPhone" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 2;">
+                        <label for="receiverAddress">Address*</label>
+                        <input type="text" id="receiverAddress" name="receiverAddress" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="receiverCity">City*</label>
+                        <input type="text" id="receiverCity" name="receiverCity" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="receiverPostalCode">Postal Code*</label>
+                        <input type="text" id="receiverPostalCode" name="receiverPostalCode" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2>3. Shipment Details</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="trackingNumber">Tracking Number*</label>
+                        <input type="text" id="trackingNumber" name="trackingNumber" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="transportMode">Mode of Transport*</label>
+                        <select id="transportMode" name="transportMode" required>
+                            <option value="">Select</option>
+                            <option value="Air">Air</option>
+                            <option value="Sea">Sea</option>
+                            <option value="Road">Road</option>
+                            <option value="Rail">Rail</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="packageCount">No. of Packages*</label>
+                        <input type="number" id="packageCount" name="packageCount" required min="1">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="totalWeight">Total Weight (kg)*</label>
+                        <input type="number" id="totalWeight" name="totalWeight" required step="0.01" min="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceType">Service Type*</label>
+                        <select id="serviceType" name="serviceType" required>
+                            <option value="">Select</option>
+                            <option value="Standard">Standard</option>
+                            <option value="Express">Express</option>
+                            <option value="Overnight">Overnight</option>
+                            <option value="Economy">Economy</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="shipmentDate">Shipment Date</label>
+                        <input type="date" id="shipmentDate" name="shipmentDate">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2>4. Description of Goods</h2>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 2;">
+                        <label for="goodsDescription">Description*</label>
+                        <textarea id="goodsDescription" name="goodsDescription" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="hsnCode">HSN Code</label>
+                        <input type="text" id="hsnCode" name="hsnCode" value="70115104">
+                        <div class="barcode-container">
+                            <svg id="hsnBarcode"></svg>
+                            <div class="barcode-label">HSN Code Barcode</div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="goodsValue">Declared Value (₹)</label>
+                        <input type="number" id="goodsValue" name="goodsValue" step="0.01" min="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2>5. Authorization & Signatures</h2>
+                <div class="form-group">
+                    <label for="shipperDeclaration">Shipper's Declaration*</label>
+                    <textarea id="shipperDeclaration" name="shipperDeclaration" required>I hereby authorize the carrier to create invoices and act as my agent for shipping purposes. I agree to the terms and conditions of carriage.</textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="shipperSignature">Shipper's Signature Name</label>
+                        <input type="text" id="shipperSignature" name="shipperSignature">
+                    </div>
+                    <div class="form-group">
+                        <label for="receiverSignature">Receiver's Signature Name</label>
+                        <input type="text" id="receiverSignature" name="receiverSignature">
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-container">
+                <button type="button" class="btn" id="generateBtn">Generate Document</button>
+                <button type="button" class="btn btn-secondary" id="saveBtn">Save Draft</button>
+                <button type="reset" class="btn btn-secondary">Reset Form</button>
+                <button type="button" class="btn" id="printBtn" style="display: none;">Print Document</button>
+            </div>
+        </form>
+
+        <div id="documentOutput" class="document-output">
+            <div class="output-header">
+                <div class="logo-container">
+                    <img src="https://via.placeholder.com/45x45?text=SRESHTA" alt="Sreshta Couriers Logo" class="company-logo">
+                    <div>
+                        <h1>Sreshta Couriers</h1>
+                        <p>Shipping Document</p>
+                    </div>
+                </div>
+                <div>
+                    <p><strong>Generated:</strong> <span id="generationDate"></span></p>
+                    <p><strong>Tracking No:</strong> <span id="outputTrackingNumber"></span></p>
+                </div>
+            </div>
+            
+            <div class="output-content">
+                <div class="document-row">
+                    <div class="document-col">
+                        <div class="document-section">
+                            <h3>Sender Information</h3>
+                            <p><strong>Name:</strong> <span id="outputSenderName"></span></p>
+                            <p><strong>Account No.:</strong> <span id="outputSenderAccount"></span></p>
+                            <p><strong>Phone:</strong> <span id="outputSenderPhone"></span></p>
+                            <p><strong>Address:</strong> <span id="outputSenderAddress"></span></p>
+                            <p><strong>City:</strong> <span id="outputSenderCity"></span>, <span id="outputSenderPostalCode"></span></p>
+                        </div>
+                    </div>
+                    <div class="document-col">
+                        <div class="document-section">
+                            <h3>Receiver Information</h3>
+                            <p><strong>Name:</strong> <span id="outputReceiverName"></span></p>
+                            <p><strong>Account No.:</strong> <span id="outputReceiverAccount"></span></p>
+                            <p><strong>Phone:</strong> <span id="outputReceiverPhone"></span></p>
+                            <p><strong>Address:</strong> <span id="outputReceiverAddress"></span></p>
+                            <p><strong>City:</strong> <span id="outputReceiverCity"></span>, <span id="outputReceiverPostalCode"></span></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="document-row">
+                    <div class="document-col">
+                        <div class="document-section">
+                            <h3>Shipment Details</h3>
+                            <p><strong>Tracking Number:</strong> <span id="outputTrackingNumber2"></span></p>
+                            <p><strong>Mode of Transport:</strong> <span id="outputTransportMode"></span></p>
+                            <p><strong>No. of Packages:</strong> <span id="outputPackageCount"></span></p>
+                            <p><strong>Total Weight:</strong> <span id="outputTotalWeight"></span> kg</p>
+                            <p><strong>Service Type:</strong> <span id="outputServiceType"></span></p>
+                            <p><strong>Shipment Date:</strong> <span id="outputShipmentDate"></span></p>
+                        </div>
+                    </div>
+                    <div class="document-col">
+                        <div class="document-section">
+                            <h3>Description of Goods</h3>
+                            <p><strong>Description:</strong></p>
+                            <p id="outputGoodsDescription" style="white-space: pre-line; margin-left: 3px;"></p>
+                            <div style="display: flex; justify-content: space-between; margin-top: 8px;">
+                                <div>
+                                    <p><strong>HSN Code:</strong> <span id="outputHsnCode"></span></p>
+                                    <div class="barcode-container">
+                                        <svg id="outputHsnBarcode"></svg>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p><strong>Declared Value:</strong> ₹<span id="outputGoodsValue"></span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="document-section">
+                    <h3>Authorization</h3>
+                    <p id="outputShipperDeclaration" style="white-space: pre-line;"></p>
+                </div>
+                
+                <div class="document-row">
+                    <div class="document-col">
+                        <div class="document-section">
+                            <h3>QR Code for Tracking</h3>
+                            <div class="qr-code-container">
+                                <div id="qrcode"></div>
+                                <div class="qr-code-label">Scan to track your shipment</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="document-col">
+                        <div class="document-section">
+                            <h3>Signatures</h3>
+                            <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+                                <div style="width: 45%; text-align: center;">
+                                    <div class="signature-line"></div>
+                                    <p>Shipper's Signature</p>
+                                    <p><strong>Name:</strong> <span id="outputShipperSignature"></span></p>
+                                </div>
+                                <div style="width: 45%; text-align: center;">
+                                    <div class="signature-line"></div>
+                                    <p>Receiver's Signature & Date</p>
+                                    <p><strong>Name:</strong> <span id="outputReceiverSignature"></span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="footer">
+                    <p>Thank you for choosing Sreshta Couriers | www.sreshtacouriers.com | contact@sreshtacouriers.com</p>
+                    <p>This is a computer generated document. No signature is required.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification">Data saved successfully!</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('shippingForm');
+            const generateBtn = document.getElementById('generateBtn');
+            const saveBtn = document.getElementById('saveBtn');
+            const printBtn = document.getElementById('printBtn');
+            const notification = document.getElementById('notification');
+            const hsnCodeInput = document.getElementById('hsnCode');
+            const hsnBarcode = document.getElementById('hsnBarcode');
+            
+            // Initialize barcode
+            generateBarcode(hsnCodeInput.value, hsnBarcode);
+            
+            // Event listeners
+            hsnCodeInput.addEventListener('input', function() {
+                generateBarcode(this.value, hsnBarcode);
+            });
+            
+            generateBtn.addEventListener('click', generateDocument);
+            saveBtn.addEventListener('click', saveFormData);
+            printBtn.addEventListener('click', () => window.print());
+            
+            // Load saved data
+            loadSavedData();
+            
+            // Functions
+            function generateBarcode(text, element) {
+                if (text) {
+                    JsBarcode(element, text, {
+                        format: "CODE128",
+                        lineColor: "#000",
+                        width: 1.2,
+                        height: 35,
+                        displayValue: true,
+                        fontSize: 10,
+                        margin: 2
+                    });
+                }
+            }
+            
+            function generateQRCode(text, elementId) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.innerHTML = '';
+                    if (text) {
+                        QRCode.toCanvas(text, { width: 100 }, function(error, canvas) {
+                            if (error) console.error(error);
+                            element.appendChild(canvas);
+                        });
+                    }
+                }
+            }
+            
+            function loadSavedData() {
+                const savedData = localStorage.getItem('sreshtaCouriersFormData');
+                if (savedData) {
+                    const formData = JSON.parse(savedData);
+                    for (const key in formData) {
+                        const element = document.getElementById(key);
+                        if (element) {
+                            element.value = formData[key];
+                        }
+                    }
+                    showNotification('Draft loaded successfully');
+                }
+            }
+            
+            function saveFormData() {
+                const formData = {};
+                const formElements = form.elements;
+                
+                for (let i = 0; i < formElements.length; i++) {
+                    const element = formElements[i];
+                    if (element.name && element.type !== 'button' && element.type !== 'submit') {
+                        formData[element.name] = element.value;
+                    }
+                }
+                
+                localStorage.setItem('sreshtaCouriersFormData', JSON.stringify(formData));
+                showNotification('Draft saved successfully');
+            }
+            
+            function showNotification(message) {
+                notification.textContent = message;
+                notification.style.display = 'block';
+                notification.style.backgroundColor = '#4CAF50';
+                
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 3000);
+            }
+            
+            function generateDocument() {
+                let isValid = true;
+                const requiredFields = form.querySelectorAll('[required]');
+                
+                requiredFields.forEach(field => {
+                    if (!field.value.trim()) {
+                        isValid = false;
+                        field.style.borderColor = 'red';
+                    } else {
+                        field.style.borderColor = '#ddd';
+                    }
+                });
+                
+                if (!isValid) {
+                    showNotification('Please fill in all required fields');
+                    return;
+                }
+                
+                const textFields = [
+                    'senderAccount', 'senderName', 'senderPhone', 'senderAddress', 
+                    'senderCity', 'senderPostalCode', 'receiverAccount', 'receiverName', 
+                    'receiverPhone', 'receiverAddress', 'receiverCity', 'receiverPostalCode',
+                    'trackingNumber', 'transportMode', 'packageCount', 'totalWeight',
+                    'serviceType', 'hsnCode', 'goodsDescription', 'shipperDeclaration',
+                    'shipperSignature', 'receiverSignature', 'goodsValue'
+                ];
+                
+                textFields.forEach(field => {
+                    const outputElement = document.getElementById(`output${field.charAt(0).toUpperCase() + field.slice(1)}`);
+                    if (outputElement) {
+                        outputElement.textContent = document.getElementById(field).value;
+                    }
+                });
+                
+                const trackingNumber = document.getElementById('trackingNumber').value;
+                document.getElementById('outputTrackingNumber').textContent = trackingNumber;
+                document.getElementById('outputTrackingNumber2').textContent = trackingNumber;
+                
+                const shipmentDate = document.getElementById('shipmentDate').value;
+                if (shipmentDate) {
+                    const dateObj = new Date(shipmentDate);
+                    document.getElementById('outputShipmentDate').textContent = 
+                        dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                }
+                
+                const now = new Date();
+                document.getElementById('generationDate').textContent = 
+                    now.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                
+                const hsnCode = document.getElementById('hsnCode').value;
+                generateBarcode(hsnCode, document.getElementById('outputHsnBarcode'));
+                
+                const trackingUrl = `https://sreshtacourier.com/?ref=${trackingNumber}`;
+                generateQRCode(trackingUrl, 'qrcode');
+                
+                document.getElementById('documentOutput').style.display = 'block';
+                printBtn.style.display = 'inline-block';
+                document.getElementById('documentOutput').scrollIntoView({ behavior: 'smooth' });
+            }
+            
+            // Auto-save when leaving the page
+            window.addEventListener('beforeunload', () => {
+                const hasData = Array.from(form.elements).some(
+                    el => el.value && el.type !== 'button' && el.type !== 'submit'
+                );
+                if (hasData) {
+                    saveFormData();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
