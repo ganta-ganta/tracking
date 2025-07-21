@@ -1755,6 +1755,288 @@
             };
             return date.toLocaleDateString('en-US', options);
         }
+        // Admin Dashboard Functionality
+function initAdminDashboard() {
+    // Initialize the shipments table
+    initShipmentsTable();
+    
+    // Set up the add shipment form
+    const addShipmentForm = document.getElementById('addShipmentForm');
+    if (addShipmentForm) {
+        addShipmentForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const trackingNumber = document.getElementById('newTrackingNumber').value.trim().toUpperCase();
+            const customerName = document.getElementById('customerName').value.trim();
+            const origin = document.getElementById('origin').value.trim();
+            const destination = document.getElementById('destination').value.trim();
+            const weight = document.getElementById('weight').value.trim();
+            const status = document.getElementById('status').value;
+            const notes = document.getElementById('notes').value.trim();
+            const forwardingAWB = document.getElementById('forwardingAWB').value.trim();
+            const forwardingCourier = document.getElementById('forwardingCourier').value.trim();
+            
+            if (!trackingNumber.startsWith('SIC') || trackingNumber.length !== 11) {
+                alert('Tracking number must start with SIC and be 11 characters long (e.g., SIC00000001)');
+                return;
+            }
+            
+            try {
+                showLoading();
+                
+                const shipmentData = {
+                    trackingNumber,
+                    customerName,
+                    origin,
+                    destination,
+                    weight: weight || null,
+                    status,
+                    notes: notes || null,
+                    forwardingAWB: forwardingAWB || null,
+                    forwardingCourier: forwardingCourier || null,
+                    history: [{
+                        status,
+                        notes,
+                        timestamp: new Date()
+                    }],
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                };
+                
+                await setDoc(doc(db, 'shipments', trackingNumber), shipmentData);
+                
+                alert('Shipment added successfully!');
+                addShipmentForm.reset();
+                initShipmentsTable(); // Refresh the table
+            } catch (error) {
+                console.error("Error adding shipment: ", error);
+                alert('Error adding shipment: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        });
+    }
+    
+    // Set up the update status form
+    const updateStatusForm = document.getElementById('updateStatusForm');
+    if (updateStatusForm) {
+        updateStatusForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const trackingNumber = document.getElementById('updateTrackingNumber').value.trim().toUpperCase();
+            const status = document.getElementById('newStatus').value;
+            const notes = document.getElementById('updateNotes').value.trim();
+            
+            if (!trackingNumber.startsWith('SIC') || trackingNumber.length !== 11) {
+                alert('Invalid tracking number format');
+                return;
+            }
+            
+            try {
+                showLoading();
+                
+                const shipmentRef = doc(db, 'shipments', trackingNumber);
+                const shipmentSnap = await getDoc(shipmentRef);
+                
+                if (!shipmentSnap.exists()) {
+                    alert('No shipment found with this tracking number');
+                    return;
+                }
+                
+                const updateData = {
+                    status,
+                    notes: notes || null,
+                    updatedAt: new Date()
+                };
+                
+                await updateDoc(shipmentRef, updateData);
+                
+                // Add to history
+                await updateDoc(shipmentRef, {
+                    history: arrayUnion({
+                        status,
+                        notes,
+                        timestamp: new Date()
+                    })
+                });
+                
+                alert('Status updated successfully!');
+                updateStatusForm.reset();
+                initShipmentsTable(); // Refresh the table
+            } catch (error) {
+                console.error("Error updating status: ", error);
+                alert('Error updating status: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        });
+    }
+    
+    // Set up logout button
+    const logoutButton = document.getElementById('logoutButton');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', function() {
+            signOut(auth).then(() => {
+                showPage('tracking');
+                window.location.hash = '';
+            });
+        });
+    }
+}
+
+// Initialize the shipments table
+function initShipmentsTable() {
+    const shipmentsTableBody = document.getElementById('shipmentsTableBody');
+    if (!shipmentsTableBody) return;
+    
+    showLoading();
+    
+    shipmentsTableBody.innerHTML = '<tr><td colspan="7">Loading shipments...</td></tr>';
+    
+    const q = query(collection(db, 'shipments'), orderBy('updatedAt', 'desc'), limit(50));
+    
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        shipmentsTableBody.innerHTML = '';
+        
+        if (querySnapshot.empty) {
+            shipmentsTableBody.innerHTML = '<tr><td colspan="7">No shipments found</td></tr>';
+            hideLoading();
+            return;
+        }
+        
+        querySnapshot.forEach((doc) => {
+            const shipment = doc.data();
+            const row = document.createElement('tr');
+            
+            row.innerHTML = `
+                <td>${shipment.trackingNumber}</td>
+                <td>${shipment.customerName || '-'}</td>
+                <td>${shipment.origin}</td>
+                <td>${shipment.destination}</td>
+                <td><span class="status-badge ${statusBadges[shipment.status] || 'status-created'}">${shipment.status}</span></td>
+                <td>${formatDate(shipment.updatedAt.toDate())}</td>
+                <td>
+                    <button class="btn-view" onclick="viewShipmentDetails('${shipment.trackingNumber}')">View</button>
+                </td>
+            `;
+            
+            shipmentsTableBody.appendChild(row);
+        });
+        
+        hideLoading();
+    });
+    
+    // Store the unsubscribe function to clean up later
+    window.unsubscribeShipments = unsubscribe;
+}
+
+// View shipment details in admin panel
+window.viewShipmentDetails = async function(trackingNumber) {
+    try {
+        showLoading();
+        
+        const docRef = doc(db, 'shipments', trackingNumber);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            const shipment = docSnap.data();
+            const modal = document.getElementById('shipmentDetailsModal');
+            const modalContent = document.getElementById('shipmentDetailsContent');
+            
+            modalContent.innerHTML = `
+                <h3>Shipment Details: ${shipment.trackingNumber}</h3>
+                <div class="shipment-details-grid">
+                    <div>
+                        <h4>Customer Name</h4>
+                        <p>${shipment.customerName || '-'}</p>
+                    </div>
+                    <div>
+                        <h4>Status</h4>
+                        <p><span class="status-badge ${statusBadges[shipment.status] || 'status-created'}">${shipment.status}</span></p>
+                    </div>
+                    <div>
+                        <h4>Origin</h4>
+                        <p>${shipment.origin}</p>
+                    </div>
+                    <div>
+                        <h4>Destination</h4>
+                        <p>${shipment.destination}</p>
+                    </div>
+                    <div>
+                        <h4>Weight</h4>
+                        <p>${shipment.weight ? shipment.weight + ' kg' : '-'}</p>
+                    </div>
+                    <div>
+                        <h4>Last Updated</h4>
+                        <p>${formatDate(shipment.updatedAt.toDate())}</p>
+                    </div>
+                    <div>
+                        <h4>Forwarding AWB</h4>
+                        <p>${shipment.forwardingAWB || '-'}</p>
+                    </div>
+                    <div>
+                        <h4>Forwarding Courier</h4>
+                        <p>${shipment.forwardingCourier || '-'}</p>
+                    </div>
+                </div>
+                
+                <h4>Status History</h4>
+                <div class="status-history">
+                    ${shipment.history ? shipment.history.map(item => `
+                        <div class="history-item">
+                            <div class="history-status">
+                                <span class="status-badge ${statusBadges[item.status] || 'status-created'}">${item.status}</span>
+                            </div>
+                            <div class="history-details">
+                                <p>${item.notes || 'No notes'}</p>
+                                <small>${formatDate(item.timestamp.toDate())}</small>
+                            </div>
+                        </div>
+                    `).join('') : '<p>No history available</p>'}
+                </div>
+                
+                <button class="btn-close" onclick="closeModal()">Close</button>
+            `;
+            
+            modal.style.display = 'block';
+        } else {
+            alert('Shipment not found');
+        }
+    } catch (error) {
+        console.error("Error viewing shipment: ", error);
+        alert('Error loading shipment details');
+    } finally {
+        hideLoading();
+    }
+};
+
+// Close modal function
+window.closeModal = function() {
+    const modal = document.getElementById('shipmentDetailsModal');
+    if (modal) modal.style.display = 'none';
+};
+
+// Admin Login Functionality
+const adminLoginForm = document.getElementById('adminLoginForm');
+if (adminLoginForm) {
+    adminLoginForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const email = document.getElementById('adminEmail').value.trim();
+        const password = document.getElementById('adminPassword').value;
+        
+        showLoading();
+        
+        signInWithEmailAndPassword(auth, email, password)
+            .then(() => {
+                // onAuthStateChanged will handle the redirect
+            })
+            .catch((error) => {
+                hideLoading();
+                alert('Login failed: ' + error.message);
+            });
+    });
+}
     </script>
     <div id="auto-loading" class="auto-loading" style="display: none;">
     <div class="auto-loading-content">
