@@ -1,0 +1,608 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Forma Invoice Generator</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .editor-panel, .preview-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            color: var(--primary-color);
+        }
+        h1 {
+            font-size: 24px;
+            margin-top: 0;
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 10px;
+        }
+        .form-section {
+            margin-bottom: 25px;
+        }
+        .form-row {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        .item-row {
+            display: grid;
+            grid-template-columns: 3fr 1fr 1fr 1fr 1fr 40px;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .item-row button {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: var(--secondary-color);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        .btn-secondary {
+            background: #ecf0f1;
+            color: var(--primary-color);
+        }
+        .btn-secondary:hover {
+            background: #bdc3c7;
+        }
+        .btn-add {
+            width: 100%;
+            margin-top: 5px;
+        }
+        #invoice-preview {
+            background: white;
+            padding: 30px;
+            min-height: 1120px;
+            box-sizing: border-box;
+        }
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .company-logo {
+            max-width: 180px;
+            max-height: 100px;
+            margin-bottom: 15px;
+        }
+        .invoice-title {
+            text-align: center;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 20px 0;
+            text-transform: uppercase;
+        }
+        .invoice-subtitle {
+            text-align: center;
+            font-size: 16px;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        .address-block {
+            line-height: 1.6;
+        }
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+        }
+        .invoice-table th {
+            background: var(--primary-color);
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        .invoice-table td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        .invoice-table tr:last-child td {
+            border-bottom: none;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .total-row {
+            font-weight: 700;
+        }
+        .terms-conditions {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+        .signature-area {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .signature-box {
+            width: 250px;
+            border-top: 1px solid #333;
+            padding-top: 10px;
+            text-align: center;
+        }
+        .tracking-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .tracking-info {
+            flex: 1;
+        }
+        .qr-code-container {
+            width: 120px;
+            height: 120px;
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+        }
+        @media print {
+            .editor-panel, .print-btn {
+                display: none;
+            }
+            .preview-panel {
+                width: 100%;
+                padding: 0;
+                box-shadow: none;
+            }
+            #invoice-preview {
+                padding: 20px;
+                min-height: auto;
+            }
+        }
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <!-- QR Code library -->
+    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="editor-panel">
+            <h1>Pro Forma Invoice Generator</h1>
+            
+            <div class="form-section">
+                <h3>Company Information</h3>
+                <div class="form-row">
+                    <label for="company-name">Company Name</label>
+                    <input type="text" id="company-name" value="TUMMALA EXPORTS">
+                </div>
+                <div class="form-row">
+                    <label for="company-address">Address</label>
+                    <textarea id="company-address">123 Export Street, Guntur, Andhra Pradesh, India</textarea>
+                </div>
+                <div class="form-row">
+                    <label for="company-tax">Tax ID/VAT/GST</label>
+                    <input type="text" id="company-tax" value="GSTIN: 22ABCDE1234F1Z5">
+                </div>
+                <div class="form-row">
+                    <label for="company-phone">Phone</label>
+                    <input type="text" id="company-phone" value="+91 9876543210">
+                </div>
+                <div class="form-row">
+                    <label for="company-email">Email</label>
+                    <input type="text" id="company-email" value="exports@tummala.com">
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h3>Client Information</h3>
+                <div class="form-row">
+                    <label for="client-name">Client Name</label>
+                    <input type="text" id="client-name" value="KIRAN GOLLAMUDI">
+                </div>
+                <div class="form-row">
+                    <label for="client-address">Address</label>
+                    <textarea id="client-address">56 Meyer Road 4643, Edison, NJ, USA</textarea>
+                </div>
+                <div class="form-row">
+                    <label for="client-tax">Tax ID/VAT</label>
+                    <input type="text" id="client-tax" value="">
+                </div>
+                <div class="form-row">
+                    <label for="client-phone">Phone</label>
+                    <input type="text" id="client-phone" value="+1 8143888039">
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h3>Invoice Details</h3>
+                <div class="form-row">
+                    <label for="invoice-number">Invoice Number</label>
+                    <input type="text" id="invoice-number" value="PF-2023-001">
+                </div>
+                <div class="form-row">
+                    <label for="invoice-date">Date</label>
+                    <input type="date" id="invoice-date">
+                </div>
+                <div class="form-row">
+                    <label for="payment-terms">Payment Terms</label>
+                    <input type="text" id="payment-terms" value="100% Advance Payment">
+                </div>
+                <div class="form-row">
+                    <label for="delivery-terms">Delivery Terms</label>
+                    <input type="text" id="delivery-terms" value="FOB Chennai Port">
+                </div>
+                <div class="form-row">
+                    <label for="shipment-date">Expected Shipment Date</label>
+                    <input type="date" id="shipment-date">
+                </div>
+                <div class="form-row">
+                    <label for="tracking-ref">Tracking Reference Code</label>
+                    <input type="text" id="tracking-ref" value="TRK-${Math.floor(100000 + Math.random() * 900000)}">
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h3>Items</h3>
+                <div id="items-container">
+                    <div class="item-row">
+                        <input type="text" class="item-desc" placeholder="Description" value="Homemade Pickle (Mixed Vegetable & Fruits)">
+                        <input type="text" class="item-hscode" placeholder="HS Code" value="20019000">
+                        <input type="number" class="item-qty" placeholder="Qty" value="2" step="0.001">
+                        <input type="text" class="item-unit" placeholder="Unit" value="JAR">
+                        <input type="number" class="item-rate" placeholder="Rate" value="750" step="0.01">
+                        <button class="remove-item">×</button>
+                    </div>
+                    <div class="item-row">
+                        <input type="text" class="item-desc" placeholder="Description" value="Homemade Sweet (Gram Flour)">
+                        <input type="text" class="item-hscode" placeholder="HS Code" value="17049020">
+                        <input type="number" class="item-qty" placeholder="Qty" value="1.5" step="0.001">
+                        <input type="text" class="item-unit" placeholder="Unit" value="BOX">
+                        <input type="number" class="item-rate" placeholder="Rate" value="650" step="0.01">
+                        <button class="remove-item">×</button>
+                    </div>
+                </div>
+                <button class="btn btn-secondary btn-add" id="add-item">+ Add Item</button>
+            </div>
+            
+            <div class="form-section">
+                <h3>Additional Information</h3>
+                <div class="form-row">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes">This is a pro forma invoice and does not constitute an actual sale. Prices valid for 30 days.</textarea>
+                </div>
+                <div class="form-row">
+                    <label for="terms">Terms & Conditions</label>
+                    <textarea id="terms">1. 100% payment in advance required before shipment
+2. Delivery time: 15 days after payment confirmation
+3. All disputes subject to Guntur jurisdiction</textarea>
+                </div>
+            </div>
+            
+            <div class="form-row" style="margin-top: 30px;">
+                <button class="btn btn-primary" id="generate-invoice">Generate Invoice</button>
+                <button class="btn btn-secondary print-btn" id="print-invoice" style="margin-left: 10px;">Print Invoice</button>
+            </div>
+        </div>
+        
+        <div class="preview-panel">
+            <h1>Invoice Preview</h1>
+            <div id="invoice-preview">
+                <!-- Invoice will be generated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set today's date as default for invoice and shipment
+        const today = new Date();
+        document.getElementById('invoice-date').valueAsDate = today;
+        
+        const nextWeek = new Date();
+        nextWeek.setDate(today.getDate() + 7);
+        document.getElementById('shipment-date').valueAsDate = nextWeek;
+        
+        // Add item row
+        document.getElementById('add-item').addEventListener('click', function() {
+            const itemRow = document.createElement('div');
+            itemRow.className = 'item-row';
+            itemRow.innerHTML = `
+                <input type="text" class="item-desc" placeholder="Description">
+                <input type="text" class="item-hscode" placeholder="HS Code">
+                <input type="number" class="item-qty" placeholder="Qty" value="1" step="0.001">
+                <input type="text" class="item-unit" placeholder="Unit" value="PCS">
+                <input type="number" class="item-rate" placeholder="Rate" value="0" step="0.01">
+                <button class="remove-item">×</button>
+            `;
+            document.getElementById('items-container').appendChild(itemRow);
+            
+            // Add event listener to new remove button
+            itemRow.querySelector('.remove-item').addEventListener('click', function() {
+                itemRow.remove();
+                generateInvoice();
+            });
+            
+            // Add event listeners to new inputs
+            const inputs = itemRow.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.addEventListener('input', generateInvoice);
+            });
+        });
+        
+        // Remove item row
+        document.querySelectorAll('.remove-item').forEach(button => {
+            button.addEventListener('click', function() {
+                this.parentElement.remove();
+                generateInvoice();
+            });
+        });
+        
+        // Generate QR code
+        function generateQRCode(elementId, text) {
+            // Clear previous QR code
+            document.getElementById(elementId).innerHTML = '';
+            
+            // Generate new QR code
+            new QRCode(document.getElementById(elementId), {
+                text: text,
+                width: 100,
+                height: 100,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+        
+        // Generate invoice
+        function generateInvoice() {
+            // Company information
+            const companyName = document.getElementById('company-name').value;
+            const companyAddress = document.getElementById('company-address').value;
+            const companyTax = document.getElementById('company-tax').value;
+            const companyPhone = document.getElementById('company-phone').value;
+            const companyEmail = document.getElementById('company-email').value;
+            
+            // Client information
+            const clientName = document.getElementById('client-name').value;
+            const clientAddress = document.getElementById('client-address').value;
+            const clientTax = document.getElementById('client-tax').value;
+            const clientPhone = document.getElementById('client-phone').value;
+            
+            // Invoice details
+            const invoiceNumber = document.getElementById('invoice-number').value;
+            const invoiceDate = new Date(document.getElementById('invoice-date').value);
+            const formattedDate = invoiceDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            const paymentTerms = document.getElementById('payment-terms').value;
+            const deliveryTerms = document.getElementById('delivery-terms').value;
+            const shipmentDate = new Date(document.getElementById('shipment-date').value);
+            const formattedShipmentDate = shipmentDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            const trackingRef = document.getElementById('tracking-ref').value;
+            
+            // Generate tracking URL
+            const trackingUrl = `https://tracking.gantasolutions.com/?ref=${trackingRef}`;
+            
+            // Additional information
+            const notes = document.getElementById('notes').value;
+            const terms = document.getElementById('terms').value;
+            
+            // Process items
+            let itemsHTML = '';
+            let subtotal = 0;
+            const itemRows = document.querySelectorAll('.item-row');
+            
+            itemRows.forEach((row, index) => {
+                const desc = row.querySelector('.item-desc').value;
+                const hscode = row.querySelector('.item-hscode').value;
+                const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+                const unit = row.querySelector('.item-unit').value;
+                const rate = parseFloat(row.querySelector('.item-rate').value) || 0;
+                const amount = qty * rate;
+                subtotal += amount;
+                
+                itemsHTML += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${desc} <span style="color:#777;">${hscode ? 'HS: ' + hscode : ''}</span></td>
+                        <td class="text-center">${unit}</td>
+                        <td class="text-right">${qty.toFixed(3)}</td>
+                        <td class="text-right">${rate.toFixed(2)}</td>
+                        <td class="text-right">${amount.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+            
+            // Calculate totals (example tax calculation)
+            const taxRate = 0.18; // 18% GST
+            const tax = subtotal * taxRate;
+            const total = subtotal + tax;
+            
+            // Generate invoice HTML
+            const invoiceHTML = `
+                <div class="invoice-header">
+                    <div>
+                        <div style="font-size: 24px; font-weight: 700; color: var(--primary-color); margin-bottom: 5px;">${companyName}</div>
+                        <div class="address-block">${companyAddress.replace(/\n/g, '<br>')}</div>
+                        <div style="margin-top: 10px;">
+                            <strong>Tax ID:</strong> ${companyTax}<br>
+                            <strong>Phone:</strong> ${companyPhone}<br>
+                            <strong>Email:</strong> ${companyEmail}
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 28px; font-weight: 700; color: var(--accent-color);">PRO FORMA INVOICE</div>
+                        <div style="margin-top: 15px;">
+                            <strong>Invoice No:</strong> ${invoiceNumber}<br>
+                            <strong>Date:</strong> ${formattedDate}<br>
+                            <strong>Payment Terms:</strong> ${paymentTerms}<br>
+                            <strong>Delivery Terms:</strong> ${deliveryTerms}<br>
+                            <strong>Shipment Date:</strong> ${formattedShipmentDate}
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; margin: 30px 0;">
+                    <div style="width: 48%;">
+                        <div style="font-weight: 700; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">BILL TO:</div>
+                        <div class="address-block">
+                            <strong>${clientName}</strong><br>
+                            ${clientAddress.replace(/\n/g, '<br>')}<br>
+                            ${clientTax ? '<strong>Tax ID:</strong> ' + clientTax + '<br>' : ''}
+                            <strong>Phone:</strong> ${clientPhone}
+                        </div>
+                    </div>
+                    <div style="width: 48%;">
+                        <div style="font-weight: 700; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">SHIP TO:</div>
+                        <div class="address-block">
+                            <strong>${clientName}</strong><br>
+                            ${clientAddress.replace(/\n/g, '<br>')}<br>
+                            <strong>Country:</strong> USA
+                        </div>
+                    </div>
+                </div>
+                
+                ${notes ? `<div style="padding: 15px; background: #f8f9fa; border-radius: 4px; margin-bottom: 20px;">
+                    <strong>Note:</strong> ${notes}
+                </div>` : ''}
+                
+                <table class="invoice-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">#</th>
+                            <th style="width: 45%;">Description</th>
+                            <th style="width: 10%;">Unit</th>
+                            <th style="width: 10%;">Qty</th>
+                            <th style="width: 15%;">Unit Price (INR)</th>
+                            <th style="width: 15%;">Amount (INR)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHTML}
+                        <tr>
+                            <td colspan="5" class="text-right total-row">Subtotal</td>
+                            <td class="text-right total-row">${subtotal.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="5" class="text-right">Tax (${(taxRate * 100)}% GST)</td>
+                            <td class="text-right">${tax.toFixed(2)}</td>
+                        </tr>
+                        <tr style="background: #f8f9fa;">
+                            <td colspan="5" class="text-right total-row">TOTAL</td>
+                            <td class="text-right total-row">${total.toFixed(2)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="tracking-section">
+                    <div class="tracking-info">
+                        <strong>Tracking Information:</strong><br>
+                        You can track your shipment using this reference code:<br>
+                        <strong>Reference:</strong> ${trackingRef}<br>
+                        <strong>Tracking URL:</strong> <a href="${trackingUrl}" target="_blank">${trackingUrl}</a>
+                    </div>
+                    <div class="qr-code-container" id="qrcode"></div>
+                </div>
+                
+                <div class="terms-conditions">
+                    <h3 style="margin-top: 0;">Terms & Conditions:</h3>
+                    <div style="white-space: pre-line;">${terms}</div>
+                </div>
+                
+                <div class="signature-area">
+                    <div class="signature-box">
+                        <strong>Authorized Signature</strong><br>
+                        ${companyName}
+                    </div>
+                    <div class="signature-box">
+                        <strong>Client Acceptance</strong><br>
+                        ${clientName}
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 40px; color: #777; font-size: 12px;">
+                    This is a computer generated pro forma invoice. No signature required.
+                </div>
+            `;
+            
+            document.getElementById('invoice-preview').innerHTML = invoiceHTML;
+            
+            // Generate QR code for tracking
+            generateQRCode('qrcode', trackingUrl);
+        }
+        
+        // Event listeners for form inputs
+        document.querySelectorAll('input, textarea, select').forEach(input => {
+            input.addEventListener('input', generateInvoice);
+        });
+        
+        // Print button
+        document.getElementById('print-invoice').addEventListener('click', function() {
+            window.print();
+        });
+        
+        // Generate initial invoice
+        generateInvoice();
+    </script>
+</body>
+</html>
