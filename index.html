@@ -590,8 +590,8 @@
                         </div>
                         <div class="info-item">
                             <span class="label">Forwarding AWB:</span>
-                            <span id="resultForwardingAWB" class="value">-</span>
-                        </div>
+                           <span id="resultForwardingAWB" class="value">1234567890</span>
+                    </div>
                     </div>
                 </div>
 
@@ -957,6 +957,33 @@
             };
             return date.toLocaleDateString('en-US', options);
         }
+        document.addEventListener('DOMContentLoaded', function() {
+    const awbElement = document.getElementById('resultForwardingAWB');
+    const awbNumber = awbElement.textContent.trim();
+
+    if (awbNumber === '-' || !awbNumber) return;
+
+    let trackingUrl = '';
+
+    // Determine courier based on AWB pattern
+    if (/^\d{10}$/.test(awbNumber)) {
+        trackingUrl = `https://www.fedex.com/fedextrack/?tracknumbers=${awbNumber}`;
+    } else if (/^\d{12}$/.test(awbNumber)) {
+        trackingUrl = `https://www.dpd.com/tracking?q=${awbNumber}`;
+    } else if (/^DTDC\d+$/i.test(awbNumber)) {
+        trackingUrl = `https://www.dtdc.in/tracking.asp?Ttype=awb_no&Ref=OrNo&strCnno=${awbNumber}`;
+    } else if (/^1Z[A-Z0-9]{16}$/.test(awbNumber)) {  // Corrected UPS format (1Z + 16 chars)
+        trackingUrl = `https://www.ups.com/track?tracknum=${awbNumber}`;
+    } else if (/^[A-Z]{2}\d{9}[A-Z]{2}$/.test(awbNumber)) {
+        trackingUrl = `https://www.dhl.com/us-en/home/tracking.html?tracking-id=${awbNumber}`;
+    }
+    // Add more couriers as needed...
+
+    // Replace the text with a clickable link (if URL was found)
+    if (trackingUrl) {
+        awbElement.innerHTML = `<a href="${trackingUrl}" target="_blank" style="color: #0066cc; text-decoration: underline;">${awbNumber}</a>`;
+    }
+});
     </script>
     <div id="auto-loading" class="auto-loading" style="display: none;">
     <div class="auto-loading-content">
