@@ -273,13 +273,24 @@
                 border: none;
                 margin: 0;
                 padding: 0;
+                font-size: 12pt;
+                line-height: 1.4;
             }
             
-            .container, .document-output {
-                border: none;
-                box-shadow: none;
+            .container {
+                display: none;
+            }
+            
+            .document-output {
+                display: block !important;
+                position: relative;
+                width: 100%;
+                height: auto;
                 margin: 0;
                 padding: 0;
+                border: none;
+                box-shadow: none;
+                page-break-after: avoid;
             }
             
             .no-print {
@@ -292,6 +303,19 @@
             
             .company-logo {
                 display: none;
+            }
+            
+            .document-row, .document-section {
+                page-break-inside: avoid;
+            }
+            
+            .output-header, .output-content {
+                padding: 5px;
+            }
+            
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
             }
         }
         
@@ -612,8 +636,8 @@
                     <input type="email" id="shareEmail" placeholder="recipient@example.com">
                 </div>
                 <div class="form-group">
-                    <label for="shareWhatsapp">WhatsApp Number</label>
-                    <input type="tel" id="shareWhatsapp" placeholder="91XXXXXXXXXX">
+                    <label for="shareWhatsapp">WhatsApp Number (with country code)</label>
+                    <input type="tel" id="shareWhatsapp" placeholder="919876543210">
                 </div>
             </div>
             <div class="btn-container" style="padding: 5px 0;">
@@ -935,12 +959,9 @@
             }
             
             function shareDraft(draft) {
-                // For this example, we'll just show the share options
                 toggleDraftsContainer();
                 toggleShareOptions();
                 
-                // In a real implementation, you would prepare the draft data for sharing
-                // For now, we'll just generate the document if not already generated
                 if (!document.getElementById('documentOutput').style.display || 
                     document.getElementById('documentOutput').style.display === 'none') {
                     generateDocumentFromDraft(draft);
@@ -1158,10 +1179,42 @@
                     return;
                 }
                 
-                // In a real implementation, you would use the WhatsApp API
-                // For this example, we'll just show a notification
-                showNotification(`Document would be sent to ${phone} via WhatsApp in a real implementation`);
-                toggleShareOptions();
+                // Validate phone number format (must start with country code, no + or 0)
+                if (!/^\d{10,15}$/.test(phone)) {
+                    showNotification('Please enter a valid WhatsApp number (digits only, with country code)', true);
+                    return;
+                }
+                
+                // Create the PDF first
+                const element = document.getElementById('documentOutput');
+                const trackingNumber = document.getElementById('trackingNumber').value || 'shipping-document';
+                
+                html2canvas(element, {
+                    scale: 2,
+                    logging: false,
+                    useCORS: true,
+                    allowTaint: true
+                }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    
+                    // Create WhatsApp share link
+                    const whatsappMessage = `Here's your shipping document from Sreshta Couriers.\nTracking Number: ${trackingNumber}\n\nYou can track your shipment here: https://sreshtacourier.com/?ref=${trackingNumber}`;
+                    
+                    // Encode the message for URL
+                    const encodedMessage = encodeURIComponent(whatsappMessage);
+                    
+                    // Create WhatsApp share URL
+                    const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
+                    
+                    // Open WhatsApp in a new tab
+                    window.open(whatsappUrl, '_blank');
+                    
+                    showNotification('WhatsApp sharing initiated');
+                    toggleShareOptions();
+                }).catch(error => {
+                    console.error('Error generating document image:', error);
+                    showNotification('Error sharing document', true);
+                });
             }
             
             // Auto-save when leaving the page if there's data
@@ -1170,8 +1223,6 @@
                     el => el.value && el.type !== 'button' && el.type !== 'submit'
                 );
                 if (hasData) {
-                    // In a real implementation, you might ask the user if they want to save
-                    // For this example, we'll auto-save
                     saveFormData();
                 }
             });
