@@ -1155,6 +1155,64 @@
                 }, 3000);
             }
         });
+        function shareViaWhatsapp() {
+    const phone = document.getElementById('shareWhatsapp').value;
+    if (!phone) {
+        showNotification('Please enter a WhatsApp number', true);
+        return;
+    }
+
+    // Generate the document as an image
+    html2canvas(documentOutput).then(canvas => {
+        // Convert canvas to blob
+        canvas.toBlob(function(blob) {
+            // Create a file from the blob
+            const file = new File([blob], "shipping_document.png", { type: "image/png" });
+            
+            // Create a temporary URL for the file
+            const fileUrl = URL.createObjectURL(file);
+            
+            // Create a temporary link element
+            const link = document.createElement('a');
+            link.href = `https://wa.me/${phone}?text=Here%20is%20your%20shipping%20document%20from%20Sreshta%20Couriers`;
+            
+            // For mobile devices, we need to use the WhatsApp API differently
+            if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                // Create a form to submit the image
+                const form = document.createElement('form');
+                form.method = "POST";
+                form.action = `https://wa.me/${phone}`;
+                form.enctype = "multipart/form-data";
+                
+                // Create a file input and add the file
+                const input = document.createElement('input');
+                input.type = "file";
+                input.name = "file";
+                input.files = [file];
+                
+                // Append and submit the form
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+                
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(form);
+                    URL.revokeObjectURL(fileUrl);
+                }, 1000);
+            } else {
+                // For desktop, we can use the regular WhatsApp web interface
+                window.open(`https://web.whatsapp.com/send?phone=${phone}&text=Here%20is%20your%20shipping%20document%20from%20Sreshta%20Couriers&app_absent=0`, '_blank');
+                
+                // Note: On desktop, you'll need to manually attach the image after the chat opens
+                showNotification('Please manually attach the image on WhatsApp Web');
+            }
+            
+            showNotification('WhatsApp sharing initiated');
+            toggleShareOptions();
+        }, 'image/png');
+    });
+}
     </script>
 </body>
 </html>
