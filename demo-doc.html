@@ -262,35 +262,25 @@
             color: #555;
         }
         
-        @page {
-            size: A4 landscape;
-            margin: 2mm;
-        }
-        
         @media print {
-            body {
-                background: none;
-                border: none;
-                margin: 0;
-                padding: 0;
-                font-size: 12pt;
-                line-height: 1.4;
+            body * {
+                visibility: hidden;
             }
             
-            .container {
-                display: none;
+            .document-output, .document-output * {
+                visibility: visible;
             }
             
             .document-output {
-                display: block !important;
-                position: relative;
+                position: absolute;
+                left: 0;
+                top: 0;
                 width: 100%;
                 height: auto;
                 margin: 0;
                 padding: 0;
                 border: none;
                 box-shadow: none;
-                page-break-after: avoid;
             }
             
             .no-print {
@@ -305,17 +295,9 @@
                 display: none;
             }
             
-            .document-row, .document-section {
-                page-break-inside: avoid;
-            }
-            
-            .output-header, .output-content {
-                padding: 5px;
-            }
-            
             @page {
                 size: A4 landscape;
-                margin: 10mm;
+                margin: 5mm;
             }
         }
         
@@ -783,6 +765,7 @@
             const draftsContainer = document.getElementById('draftsContainer');
             const draftsList = document.getElementById('draftsList');
             const shareOptions = document.getElementById('shareOptions');
+            const documentOutput = document.getElementById('documentOutput');
             
             // Initialize barcode
             generateBarcode(hsnCodeInput.value, hsnBarcode);
@@ -796,7 +779,7 @@
             saveBtn.addEventListener('click', saveFormData);
             manageDraftsBtn.addEventListener('click', toggleDraftsContainer);
             closeDraftsBtn.addEventListener('click', toggleDraftsContainer);
-            printBtn.addEventListener('click', () => window.print());
+            printBtn.addEventListener('click', printDocument);
             savePdfBtn.addEventListener('click', saveAsPdf);
             shareBtn.addEventListener('click', toggleShareOptions);
             closeShareBtn.addEventListener('click', toggleShareOptions);
@@ -962,8 +945,8 @@
                 toggleDraftsContainer();
                 toggleShareOptions();
                 
-                if (!document.getElementById('documentOutput').style.display || 
-                    document.getElementById('documentOutput').style.display === 'none') {
+                if (!documentOutput.style.display || 
+                    documentOutput.style.display === 'none') {
                     generateDocumentFromDraft(draft);
                 }
             }
@@ -988,244 +971,189 @@
                 }
                 
                 const now = new Date();
-                document.getElementById('generationDate').textContent = 
-                    now.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                document.getElementById('generationDate').textContent = now.toLocaleDateString('en-IN', { 
+                    day: '2-digit', 
+                    month: 'short', 
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
                 
+                // Generate barcode for output
                 if (draft.hsnCode) {
                     generateBarcode(draft.hsnCode, document.getElementById('outputHsnBarcode'));
                 }
                 
+                // Generate QR code for tracking
                 if (draft.trackingNumber) {
-                    const trackingUrl = `https://sreshtacourier.com/?ref=${draft.trackingNumber}`;
-                    generateQRCode(trackingUrl, 'qrcode');
+                    generateQRCode(draft.trackingNumber, 'qrcode');
                 }
                 
-                document.getElementById('documentOutput').style.display = 'block';
+                // Show document and action buttons
+                documentOutput.style.display = 'block';
                 printBtn.style.display = 'inline-block';
                 savePdfBtn.style.display = 'inline-block';
                 shareBtn.style.display = 'inline-block';
-                document.getElementById('documentOutput').scrollIntoView({ behavior: 'smooth' });
+                
+                // Scroll to document
+                documentOutput.scrollIntoView({ behavior: 'smooth' });
             }
             
-            function toggleDraftsContainer() {
-                if (draftsContainer.style.display === 'none' || !draftsContainer.style.display) {
-                    draftsContainer.style.display = 'block';
-                    updateDraftsList();
-                } else {
-                    draftsContainer.style.display = 'none';
-                }
-            }
-            
-            function toggleShareOptions() {
-                if (shareOptions.style.display === 'none' || !shareOptions.style.display) {
-                    shareOptions.style.display = 'block';
-                } else {
-                    shareOptions.style.display = 'none';
-                }
-            }
-            
-            function showNotification(message, isError = false) {
-                notification.textContent = message;
-                notification.style.display = 'block';
-                notification.style.backgroundColor = isError ? 'var(--error-color)' : 'var(--success-color)';
-                if (isError) {
-                    notification.classList.add('error');
-                } else {
-                    notification.classList.remove('error');
+            function generateDocument() {
+                // Validate form
+                if (!validateForm()) {
+                    return;
                 }
                 
-                setTimeout(() => {
-                    notification.style.display = 'none';
-                }, 3000);
+                // Get form data
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData.entries());
+                
+                // Generate document from current form data
+                generateDocumentFromDraft(data);
+                
+                // Save current data to localStorage
+                localStorage.setItem('sreshtaCouriersFormData', JSON.stringify(data));
             }
             
             function validateForm() {
                 let isValid = true;
-                const requiredFields = form.querySelectorAll('[required]');
-                
-                // Reset all errors
-                document.querySelectorAll('.form-errors').forEach(el => {
-                    el.textContent = '';
-                });
-                document.querySelectorAll('.error-border').forEach(el => {
-                    el.classList.remove('error-border');
-                });
-                
-                requiredFields.forEach(field => {
-                    if (!field.value.trim()) {
-                        isValid = false;
-                        field.classList.add('error-border');
-                        const errorElement = document.getElementById(`${field.id}-error`);
-                        if (errorElement) {
-                            errorElement.textContent = 'This field is required';
-                        }
-                    }
-                });
-                
-                // Additional validation for phone numbers
-                const phoneFields = [
-                    { id: 'senderPhone', errorId: 'senderPhone-error' },
-                    { id: 'receiverPhone', errorId: 'receiverPhone-error' }
+                const requiredFields = [
+                    'senderName', 'senderPhone', 'senderAddress', 'senderCity', 'senderPostalCode',
+                    'receiverName', 'receiverPhone', 'receiverAddress', 'receiverCity', 'receiverPostalCode',
+                    'trackingNumber', 'transportMode', 'packageCount', 'totalWeight', 'serviceType',
+                    'goodsDescription', 'shipperDeclaration'
                 ];
                 
-                phoneFields.forEach(phone => {
-                    const phoneValue = document.getElementById(phone.id).value.trim();
-                    if (phoneValue && !/^[0-9]{10,15}$/.test(phoneValue)) {
-                        isValid = false;
-                        document.getElementById(phone.id).classList.add('error-border');
-                        document.getElementById(phone.errorId).textContent = 'Please enter a valid phone number';
+                // Reset error states
+                requiredFields.forEach(field => {
+                    const element = document.getElementById(field);
+                    if (element) {
+                        element.classList.remove('error-border');
+                        document.getElementById(`${field}-error`).textContent = '';
                     }
                 });
                 
-                // Validate tracking number format (example: SC-2023-12345)
-                const trackingNumber = document.getElementById('trackingNumber').value.trim();
-                if (trackingNumber && !/^[A-Za-z]{2,4}-\d{4}-\d{4,6}$/.test(trackingNumber)) {
-                    isValid = false;
-                    document.getElementById('trackingNumber').classList.add('error-border');
-                    document.getElementById('trackingNumber-error').textContent = 'Format should be like SC-2023-1234';
+                // Validate required fields
+                requiredFields.forEach(field => {
+                    const element = document.getElementById(field);
+                    if (element && !element.value.trim()) {
+                        element.classList.add('error-border');
+                        document.getElementById(`${field}-error`).textContent = 'This field is required';
+                        isValid = false;
+                    }
+                });
+                
+                // Validate numbers
+                const numberFields = ['packageCount', 'totalWeight'];
+                numberFields.forEach(field => {
+                    const element = document.getElementById(field);
+                    if (element && (isNaN(element.value) || parseFloat(element.value) <= 0)) {
+                        element.classList.add('error-border');
+                        document.getElementById(`${field}-error`).textContent = 'Please enter a valid number';
+                        isValid = false;
+                    }
+                });
+                
+                if (!isValid) {
+                    showNotification('Please fill all required fields correctly', true);
+                    document.querySelector('.error-border').scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center'
+                    });
                 }
                 
                 return isValid;
             }
             
-            function generateDocument() {
-                if (!validateForm()) {
-                    showNotification('Please correct the errors in the form', true);
-                    return;
-                }
-                
-                const textFields = [
-                    'senderAccount', 'senderName', 'senderPhone', 'senderAddress', 
-                    'senderCity', 'senderPostalCode', 'receiverAccount', 'receiverName', 
-                    'receiverPhone', 'receiverAddress', 'receiverCity', 'receiverPostalCode',
-                    'trackingNumber', 'transportMode', 'packageCount', 'totalWeight',
-                    'serviceType', 'hsnCode', 'goodsDescription', 'shipperDeclaration',
-                    'shipperSignature', 'receiverSignature', 'goodsValue'
-                ];
-                
-                textFields.forEach(field => {
-                    const outputElement = document.getElementById(`output${field.charAt(0).toUpperCase() + field.slice(1)}`);
-                    if (outputElement) {
-                        outputElement.textContent = document.getElementById(field).value;
-                    }
-                });
-                
-                const trackingNumber = document.getElementById('trackingNumber').value;
-                document.getElementById('outputTrackingNumber').textContent = trackingNumber;
-                document.getElementById('outputTrackingNumber2').textContent = trackingNumber;
-                
-                const shipmentDate = document.getElementById('shipmentDate').value;
-                if (shipmentDate) {
-                    const dateObj = new Date(shipmentDate);
-                    document.getElementById('outputShipmentDate').textContent = 
-                        dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-                }
-                
-                const now = new Date();
-                document.getElementById('generationDate').textContent = 
-                    now.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                
-                const hsnCode = document.getElementById('hsnCode').value;
-                generateBarcode(hsnCode, document.getElementById('outputHsnBarcode'));
-                
-                const trackingUrl = `https://sreshtacourier.com/?ref=${trackingNumber}`;
-                generateQRCode(trackingUrl, 'qrcode');
-                
-                document.getElementById('documentOutput').style.display = 'block';
-                printBtn.style.display = 'inline-block';
-                savePdfBtn.style.display = 'inline-block';
-                shareBtn.style.display = 'inline-block';
-                document.getElementById('documentOutput').scrollIntoView({ behavior: 'smooth' });
+            function printDocument() {
+                window.print();
             }
             
             function saveAsPdf() {
-                const element = document.getElementById('documentOutput');
-                const trackingNumber = document.getElementById('trackingNumber').value || 'shipping-document';
-                
-                html2canvas(element, {
-                    scale: 2,
-                    logging: false,
-                    useCORS: true,
-                    allowTaint: true
-                }).then(canvas => {
+                // Use html2canvas to capture the document
+                html2canvas(documentOutput).then(canvas => {
                     const imgData = canvas.toDataURL('image/png');
                     const pdf = new jsPDF('l', 'mm', 'a4');
-                    const imgWidth = 297; // A4 width in mm
+                    const imgWidth = 297; // A4 width in mm (landscape)
                     const imgHeight = canvas.height * imgWidth / canvas.width;
                     
                     pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-                    pdf.save(`Sreshta-Couriers-${trackingNumber}.pdf`);
+                    
+                    // Generate filename with tracking number or date
+                    const trackingNumber = document.getElementById('trackingNumber').value;
+                    const filename = trackingNumber ? 
+                        `Sreshta_Couriers_${trackingNumber}.pdf` : 
+                        `Sreshta_Couriers_${new Date().toISOString().slice(0, 10)}.pdf`;
+                    
+                    pdf.save(filename);
                     showNotification('PDF saved successfully');
                 });
             }
             
+            function toggleDraftsContainer() {
+                if (draftsContainer.style.display === 'block') {
+                    draftsContainer.style.display = 'none';
+                } else {
+                    updateDraftsList();
+                    draftsContainer.style.display = 'block';
+                    shareOptions.style.display = 'none';
+                }
+            }
+            
+            function toggleShareOptions() {
+                if (shareOptions.style.display === 'block') {
+                    shareOptions.style.display = 'none';
+                } else {
+                    shareOptions.style.display = 'block';
+                    draftsContainer.style.display = 'none';
+                }
+            }
+            
             function shareViaEmail() {
-                const email = document.getElementById('shareEmail').value.trim();
+                const email = document.getElementById('shareEmail').value;
                 if (!email) {
                     showNotification('Please enter an email address', true);
                     return;
                 }
                 
-                // In a real implementation, you would send the email via a server
-                // For this example, we'll just show a notification
+                // In a real implementation, you would send the document via email
+                // This is just a simulation
                 showNotification(`Document would be sent to ${email} in a real implementation`);
                 toggleShareOptions();
             }
             
             function shareViaWhatsapp() {
-                const phone = document.getElementById('shareWhatsapp').value.trim();
+                const phone = document.getElementById('shareWhatsapp').value;
                 if (!phone) {
                     showNotification('Please enter a WhatsApp number', true);
                     return;
                 }
                 
-                // Validate phone number format (must start with country code, no + or 0)
-                if (!/^\d{10,15}$/.test(phone)) {
-                    showNotification('Please enter a valid WhatsApp number (digits only, with country code)', true);
-                    return;
-                }
-                
-                // Create the PDF first
-                const element = document.getElementById('documentOutput');
-                const trackingNumber = document.getElementById('trackingNumber').value || 'shipping-document';
-                
-                html2canvas(element, {
-                    scale: 2,
-                    logging: false,
-                    useCORS: true,
-                    allowTaint: true
-                }).then(canvas => {
+                // Generate PDF first
+                html2canvas(documentOutput).then(canvas => {
                     const imgData = canvas.toDataURL('image/png');
                     
-                    // Create WhatsApp share link
-                    const whatsappMessage = `Here's your shipping document from Sreshta Couriers.\nTracking Number: ${trackingNumber}\n\nYou can track your shipment here: https://sreshtacourier.com/?ref=${trackingNumber}`;
-                    
-                    // Encode the message for URL
-                    const encodedMessage = encodeURIComponent(whatsappMessage);
-                    
-                    // Create WhatsApp share URL
-                    const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
-                    
-                    // Open WhatsApp in a new tab
-                    window.open(whatsappUrl, '_blank');
+                    // Create a temporary link to share
+                    const link = document.createElement('a');
+                    link.href = `https://wa.me/${phone}?text=Here%20is%20your%20shipping%20document%20from%20Sreshta%20Couriers`;
+                    link.target = '_blank';
+                    link.click();
                     
                     showNotification('WhatsApp sharing initiated');
                     toggleShareOptions();
-                }).catch(error => {
-                    console.error('Error generating document image:', error);
-                    showNotification('Error sharing document', true);
                 });
             }
             
-            // Auto-save when leaving the page if there's data
-            window.addEventListener('beforeunload', (e) => {
-                const hasData = Array.from(form.elements).some(
-                    el => el.value && el.type !== 'button' && el.type !== 'submit'
-                );
-                if (hasData) {
-                    saveFormData();
-                }
-            });
+            function showNotification(message, isError = false) {
+                notification.textContent = message;
+                notification.className = isError ? 'notification error' : 'notification';
+                notification.style.display = 'block';
+                
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 3000);
+            }
         });
     </script>
 </body>
